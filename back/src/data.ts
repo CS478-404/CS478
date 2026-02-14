@@ -65,13 +65,16 @@ async function mealToDb() {
                     let measure = meal[`strMeasure${i}`];
 
                     if (ingredient && ingredient.trim()) {
-                        await db.run(`INSERT OR IGNORE INTO ingredients (name) VALUES (?)`, [ingredient.trim()]);
-                        
                         let result = await db.get(`SELECT id FROM ingredients WHERE name = ?`, [ingredient.trim()]);
+
+                        if (!result) {
+                            await db.run(`INSERT INTO ingredients (name) VALUES (?)`, [ingredient.trim()]);
+                            result = await db.get(`SELECT id FROM ingredients WHERE name = ?`, [ingredient.trim()]);
+                        }
                         
                         await db.run(
-                        `INSERT OR IGNORE INTO meal_ingredients (idMeal, idIngredient, measure) VALUES (?, ?, ?)`,
-                        [mealId, result.id, measure?.trim() || ""]
+                            `INSERT OR IGNORE INTO meal_ingredients (idMeal, idIngredient, measure) VALUES (?, ?, ?)`,
+                            [mealId, result.id, measure?.trim() || ""]
                         );
                     }
                 }
