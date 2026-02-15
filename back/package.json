@@ -1,6 +1,22 @@
 {
+  "scripts": {
+    "setup": "rm -f database.db && sqlite3 database.db < setup.sql",
+    "build": "mkdir -p dist && rm -rf dist/* && tsc && mkdir dist/public && (cd ../front && npm run build) && cp -r ../front/dist/* dist/public",
+    "start": "cd dist && node server.js",
+    "dev": "cd src && tsx --watch server.ts",
+    "test": "vitest",
+    "data": "cd src && tsx data.ts"
+  },
+  "type": "module",
   "dependencies": {
     "express": "^5.2.1",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.2.3",
+    "tsx": "^4.21.0"
   }
 }
