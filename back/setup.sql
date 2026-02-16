@@ -57,3 +57,10 @@ CREATE TABLE user_restrictions (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
 ); 
+
+INSERT INTO users (username, email, password_hash)
+VALUES (
+  'admin',
+  'sylas.serpens@gmail.com',
+  '$argon2id$v=19$m=65536,t=3,p=4$XP5zZMDRLAWb8g4qIkUgaQ$IjwOxVicBx1xdCFwHyoVDnt4f3pIUCrZ1ydNa2SnPl4'
+);
