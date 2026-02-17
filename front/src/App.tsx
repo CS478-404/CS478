@@ -24,17 +24,17 @@ function AuthOnly() {
   let isLoggedIn = cookies.username !== undefined;
   let [authOpen, setAuthOpen] = useState(false);
   let [authMode, setAuthMode] = useState<"login" | "register">("login");
-  let [formData, setFormData] = useState({ username: "", password: "", email: "", identifier: "" });
+  let [formData, setFormData] = useState({username: "", password: "", email: "", identifier: ""});
   let [loginMessage, setLoginMessage] = useState("");
   let [noticeOpen, setNoticeOpen] = useState(false);
   let [noticeText, setNoticeText] = useState("");
   let [noticeSeverity, setNoticeSeverity] = useState<
-    "success" | "info" | "warning" | "error"
+      "success" | "info" | "warning" | "error"
   >("error");
 
   function showNotice(
-    text: string,
-    severity: "success" | "info" | "warning" | "error" = "error",
+      text: string,
+      severity: "success" | "info" | "warning" | "error" = "error",
   ) {
     setNoticeText(text);
     setNoticeSeverity(severity);
@@ -54,14 +54,14 @@ function AuthOnly() {
   function closeAuth() {
     setAuthOpen(false);
     setLoginMessage("");
-    setFormData({ username: "", password: "", email: "", identifier: "" });
+    setFormData({username: "", password: "", email: "", identifier: ""});
   }
 
   let handleFormChange: React.ChangeEventHandler<HTMLInputElement> = (
-    event,
+      event,
   ) => {
     setLoginMessage("");
-    setFormData({ ...formData, [event.target.name]: event.target.value });
+    setFormData({...formData, [event.target.name]: event.target.value});
   };
 
   async function submitAuth() {
@@ -69,9 +69,9 @@ function AuthOnly() {
     let url = authMode === "login" ? "/api/login" : "/api/register";
     let expectedStatus = authMode === "login" ? 200 : 201;
     let payload =
-      authMode === "login"
-        ? { identifier: formData.identifier, password: formData.password }
-        : { username: formData.username, email: formData.email, password: formData.password };
+        authMode === "login"
+            ? {identifier: formData.identifier, password: formData.password}
+            : {username: formData.username, email: formData.email, password: formData.password};
     let res = await axios.post<LoginResponse>(url, payload);
 
     if (res.status !== expectedStatus) {
@@ -81,15 +81,15 @@ function AuthOnly() {
 
     closeAuth();
     showNotice(
-      authMode === "login" ? "Logged in." : "Account created.",
-      "success",
+        authMode === "login" ? "Logged in." : "Account created.",
+        "success",
     );
   }
 
   async function logout() {
     await axios.post("/api/logout");
-    removeCookie("token", { path: "/" });
-    removeCookie("username", { path: "/" });
+    removeCookie("token", {path: "/"});
+    removeCookie("username", {path: "/"});
     showNotice("Logged out.", "info");
   }
 
