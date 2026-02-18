@@ -1,36 +1,58 @@
-import { useState } from "react";
+import {useEffect, useState} from "react";
 import axios from "axios";
-import { useCookies } from "react-cookie";
+import {useCookies} from "react-cookie";
 import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  TextField,
-  Stack,
-  Snackbar,
-  Alert,
+    Alert,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
+    Snackbar,
+    Stack,
+    TextField,
 } from "@mui/material";
+import AppLayout from "./AppLayout.tsx";
 
 axios.defaults.validateStatus = () => true;
 
 type ApiError = { error?: string; errors?: string[] };
 type LoginResponse = { username?: string } & ApiError;
+type Meal = {
+    strTags: string;
+    strCategory: string;
+    strImageSource: string;
+    strMeal: string;
+}
 
 function AuthOnly() {
-  let [cookies, , removeCookie] = useCookies(["token", "username"]);
-  let isLoggedIn = cookies.username !== undefined;
-  let [authOpen, setAuthOpen] = useState(false);
-  let [authMode, setAuthMode] = useState<"login" | "register">("login");
-  let [formData, setFormData] = useState({username: "", password: "", email: "", identifier: ""});
-  let [loginMessage, setLoginMessage] = useState("");
-  let [noticeOpen, setNoticeOpen] = useState(false);
-  let [noticeText, setNoticeText] = useState("");
-  let [noticeSeverity, setNoticeSeverity] = useState<
-      "success" | "info" | "warning" | "error"
-  >("error");
+    let [cookies, , removeCookie] = useCookies(["token", "username"]);
+    let isLoggedIn = cookies.username !== undefined;
+    let [authOpen, setAuthOpen] = useState(false);
+    let [authMode, setAuthMode] = useState<"login" | "register">("login");
+    let [formData, setFormData] = useState({username: "", password: "", email: "", identifier: ""});
+    let [loginMessage, setLoginMessage] = useState("");
+    let [noticeOpen, setNoticeOpen] = useState(false);
+    let [noticeText, setNoticeText] = useState("");
+    let [noticeSeverity, setNoticeSeverity] = useState<
+        "success" | "info" | "warning" | "error"
+    >("error");
+    let [meals, setMeals] = useState<Meal[]>([]);
+
+    useEffect(() => {
+        async function fetchMeals() {
+            try {
+                const res = await axios.get("http://127.0.0.1:3000/api/meals");
+                setMeals(res.data);
+            } catch (err) {
+                console.log(err);
+                console.error(err);
+            }
+        }
+
+        fetchMeals();
+    }, []);
 
   function showNotice(
       text: string,
@@ -111,27 +133,14 @@ function AuthOnly() {
         </Alert>
       </Snackbar>
 
-      <section>
-        <Stack direction="row" spacing={2} alignItems="center">
-          {isLoggedIn ? (
-            <>
-              <div>Hello, {cookies.username}!</div>
-              <Button variant="outlined" onClick={logout}>
-                Log out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="contained" onClick={() => openAuth("login")}>
-                Log in
-              </Button>
-              <Button variant="outlined" onClick={() => openAuth("register")}>
-                Create account
-              </Button>
-            </>
-          )}
-        </Stack>
-      </section>
+            <AppLayout
+                isLoggedIn={isLoggedIn}
+                username={cookies.username}
+                meals={meals}
+                onLoginClick={() => openAuth("login")}
+                onRegisterClick={() => openAuth("register")}
+                onLogout={logout}>
+            </AppLayout>
 
       <Dialog open={authOpen} onClose={closeAuth}>
         <DialogTitle>

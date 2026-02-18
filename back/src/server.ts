@@ -100,6 +100,16 @@ const cookieOptions: CookieOptions = {
     path: "/",
 };
 
+/*
+get request handlers
+*/
+app.get("/api/meals", async (req, res) => {
+    const meals = await db.all(`
+      SELECT strTags, strCategory, strImageSource, strMeal FROM meals
+    `);
+    res.json(meals ?? []);
+});
+
 /* 
 post request handlers
 */
