@@ -3,14 +3,20 @@ import {
     Autocomplete,
     Avatar,
     Box,
-    Button, Card, CardActions, CardContent, CardHeader, CardMedia,
+    Button,
+    Card,
+    CardActions,
+    CardContent,
+    CardMedia,
     Drawer,
+    Grid,
     IconButton,
     Menu,
     MenuItem,
     TextField,
     Toolbar,
-    Tooltip, Typography
+    Tooltip,
+    Typography
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import {useState} from "react";
@@ -19,9 +25,9 @@ type Props = {
     isLoggedIn: boolean;
     username?: string;
     meals: {
+        strMealThumb: string;
         strTags: string;
         strCategory: string;
-        strImageSource: string;
         strMeal: string
     }[];
     onLoginClick: () => void;
@@ -43,6 +49,8 @@ export default function AppLayout({
                                   }: Props) {
     let [open, setOpen] = useState<boolean>(false);
     let [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+    let [searchInput, setSearchInput] = useState<string>("");
+    let [searchQuery, setSearchQuery] = useState<string>("");
 
     const toggleDrawer = (newOpen: boolean) => () => {
         setOpen(newOpen);
@@ -55,6 +63,13 @@ export default function AppLayout({
     const handleCloseUserMenu = () => {
         setAnchorElUser(null);
     }
+
+    const filteredMeals =
+        searchQuery.trim() === "" ? meals : meals.filter(meal =>
+            meal.strMeal
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())
+        );
 
     return (
         <>
@@ -73,7 +88,18 @@ export default function AppLayout({
                             id="meal-search"
                             freeSolo
                             options={Array.isArray(meals) ? meals.map(m => m.strMeal) : []}
-                            renderInput={(params) => <TextField {...params} label="Meals"/>}
+                            onInputChange={(_event, value) => setSearchInput(value)}
+                            renderInput={(params) =>
+                                <TextField
+                                    {...params}
+                                    label="Search meals..."
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            setSearchQuery(searchInput);
+                                        }
+                                    }}
+                                />
+                            }
                             sx={{width: "100%", color: "white"}}
                         />
                     </Box>
@@ -127,29 +153,41 @@ export default function AppLayout({
                     </Box>
                 </Toolbar>
             </AppBar>
-            {Array.isArray(meals) && meals.map((meal, id) => (
-                <Card sx={{maxWidth: 345}} key={id}>
-                    <CardHeader>
-                        title={meal.strMeal}
-                        subheader={meal.strCategory}
-                    </CardHeader>
-                    <CardMedia
-                        component="img"
-                        height="194"
-                        image={meal.strImageSource}
-                    />
-                    <CardContent>
-                        <Typography component="p" variant="body2" color="textSecondary">
-                            {meal.strTags}
-                        </Typography>
-                    </CardContent>
-                    <CardActions disableSpacing>
-                        <IconButton aria-label="add to favorites">
-                            <FavoriteIcon/>
-                        </IconButton>
-                    </CardActions>
-                </Card>
-            ))}
+            <Grid container spacing={3} marginLeft={10} marginTop={10}>
+                {filteredMeals.map((meal, id) => (
+                    <Grid key={id}>
+                        <Card sx={{width: 250, height: 300}} key={id} variant="outlined">
+                            <CardMedia
+                                component="img"
+                                sx={{maxHeight: 200}}
+                                image={meal.strMealThumb}
+                                alt={meal.strMeal}
+                            />
+                            <CardContent>
+                                <Typography component="h1" color="textPrimary" sx={{
+                                    fontSize: 25,
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden'
+                                }}>
+                                    {meal.strMeal}
+                                </Typography>
+                                <Typography component="h4" color="textSecondary">
+                                    {meal.strCategory}
+                                </Typography>
+                                <Typography component="p" variant="body2" color="textDisabled">
+                                    {meal.strTags}
+                                </Typography>
+                            </CardContent>
+                            <CardActions disableSpacing>
+                                <IconButton aria-label="add to favorites">
+                                    <FavoriteIcon/>
+                                </IconButton>
+                            </CardActions>
+                        </Card>
+                    </Grid>
+                ))}
+            </Grid>
         </>
     );
 }

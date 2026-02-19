@@ -107,7 +107,7 @@ get request handlers
 */
 app.get("/api/meals", async (req, res) => {
     const meals = await db.all(`
-      SELECT strTags, strCategory, strImageSource, strMeal FROM meals
+      SELECT strTags, strCategory, strMealThumb, strMeal FROM meals
     `);
     res.json(meals ?? []);
 });

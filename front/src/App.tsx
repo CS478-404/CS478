@@ -24,7 +24,7 @@ type LoginResponse = { username?: string } & ApiError;
 type Meal = {
     strTags: string;
     strCategory: string;
-    strImageSource: string;
+    strMealThumb: string;
     strMeal: string;
 }
 
