@@ -15,6 +15,8 @@ import {
 } from "@mui/material";
 import AppLayout from "./AppLayout.tsx";
 
+axios.defaults.baseURL = "http://127.0.0.1:3000";
+axios.defaults.withCredentials = true;
 axios.defaults.validateStatus = () => true;
 
 type ApiError = { error?: string; errors?: string[] };
@@ -43,7 +45,7 @@ function AuthOnly() {
     useEffect(() => {
         async function fetchMeals() {
             try {
-                const res = await axios.get("http://127.0.0.1:3000/api/meals");
+                const res = await axios.get("/api/meals");
                 setMeals(res.data);
             } catch (err) {
                 console.log(err);
