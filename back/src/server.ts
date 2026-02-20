@@ -199,6 +199,48 @@ app.post("/api/login", limiter, async (req, res) => {
   return res.json({ username: user.username });
 });
 
+app.get("/api/recipe/:id/ingredients", async (req, res) => {
+  let recipeId = req.params.id;
+  try {
+    let ingredients = await db.all("SELECT * FROM meal_ingredients WHERE idMeal = ?", [recipeId]);
+    if (!ingredients || ingredients.length === 0) {
+      return res.status(404).json({ error: "Ingredients not found" });
+    }
+    res.json(ingredients);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
+app.get("/api/recipe/:id", async (req, res) => {
+  let recipeId = req.params.id; 
+  try {
+    let recipe = await db.get("SELECT * FROM meals WHERE id = ?", [recipeId]);
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+    res.json(recipe);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
+app.get("/api/ingredient/:id", async (req, res) => {
+  let ingredientId = req.params.id; 
+  try {
+    let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
+    if (!ingredient) {
+      return res.status(404).json({ error: "Ingredient not found" });
+    }
+    res.json(ingredient);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
 export function startServer() {
   let port = 3000;
   let host = "127.0.0.1";
