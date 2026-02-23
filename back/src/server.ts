@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import type { CookieOptions } from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import cors from "cors";
 
 sqlite3.verbose(); // enable better error messages
 
@@ -26,10 +27,11 @@ await db.run(
 
 export let app = express();
 
+app.use(cors({ origin: ["http://127.0.0.1:5173", "http://localhost:5173"], credentials: true }));
 app.set("trust proxy", 1);
-app.use(express.static("public"));
 app.use(express.json({ limit: "1kb" }));
 app.use(cookieParser());
+app.use(express.static("public"));
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -38,10 +40,10 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "http://127.0.0.1:3000", "http://localhost:3000"],
       },
     },
-    crossOriginResourcePolicy: { policy: "same-origin" },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   }),
 );
 app.use(
@@ -99,6 +101,16 @@ const cookieOptions: CookieOptions = {
     sameSite: isProduction ? "strict" : "lax",
     path: "/",
 };
+
+/*
+get request handlers
+*/
+app.get("/api/meals", async (req, res) => {
+    const meals = await db.all(`
+      SELECT strTags, strCategory, strMealThumb, strMeal FROM meals
+    `);
+    res.json(meals ?? []);
+});
 
 /* 
 post request handlers
