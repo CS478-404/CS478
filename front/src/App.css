@@ -33,10 +33,102 @@
   }
 }
 
+h2 {
+  font-size: 2em;
+}
+
 .card {
   padding: 2em;
 }
 
 .read-the-docs {
   color: #888;
+}
+
+.recipe-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.details {
+  display: flex;
+  gap: 4rem;
+  text-align: left;
+  justify-content: center;
+  width: 80%;
+  
+}
+
+.details img {
+  flex-shrink: 0;
+  width: 50%;
+  height: auto;
+  object-fit: cover;
+}
+
+.ingredients ul {
+  list-style-position: inside;
+  text-align: left;
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.ingredients ul.two-columns {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem 2rem;
+  list-style-type: disc;
+  padding-left: 0;
+}
+
+.instructions {
+  text-align: left;
+}
+
+.step {
+  display: flex;
+  margin-bottom: 1rem;
+  gap: 0.5rem;
+}
+
+.step-number {
+  font-weight: bold;
+  color: #646cff;
+  flex-shrink: 0;
+  min-width: 2rem;
+}
+
+.step-text {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.recipe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.recipe-header h1 {
+  margin: 0;
+  flex-grow: 1;
+}
+
+.favorite-button {
+  width: 48px !important;
+  height: 48px !important;
+  flex-shrink: 0;
+  padding: 24px !important;
+}
+
+.favorite-button .MuiTouchRipple-root {
+  display: none !important;
+}
+
+.favorite-button:focus,
+.favorite-button:focus-visible {
+  outline: none !important;
 }
