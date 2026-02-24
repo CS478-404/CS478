@@ -40,9 +40,7 @@ CREATE TABLE user_favorites (
     user_id INTEGER NOT NULL,
     meal_id INTEGER NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
     PRIMARY KEY (user_id, meal_id),
-
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (meal_id) REFERENCES meals(id)
 );
@@ -51,12 +49,32 @@ CREATE TABLE user_restrictions (
     user_id INTEGER NOT NULL,
     ingredient_id INTEGER NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
     PRIMARY KEY (user_id, ingredient_id),
-
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (ingredient_id) REFERENCES ingredients(id)
 ); 
+
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipe_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    parent_id INTEGER,
+    message TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(recipe_id) REFERENCES meals(id) ON DELETE CASCADE,
+    FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE,
+    FOREIGN KEY(parent_id) REFERENCES comments(id) ON DELETE CASCADE
+);
+
+CREATE TABLE comment_votes (
+    comment_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    value INTEGER NOT NULL CHECK(value IN (-1, 1)),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (comment_id, username),
+    FOREIGN KEY(comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+    FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE
+);
 
 INSERT INTO users (username, email, password_hash)
 VALUES (
