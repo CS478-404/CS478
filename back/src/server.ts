@@ -83,6 +83,22 @@ function parseError(zodError: z.ZodError): string[] {
     return [...formErrors, ...Object.entries(fieldErrors).map(([property, message]) => `${property}: ${message}`)];
 }
 
+async function getAuthUsername(req: express.Request): Promise<string | null> {
+  const token = (req as any).cookies?.token as string | undefined;
+  
+  if (!token) return null;
+
+  try {
+    const session = await db.get<{ username: string }>(
+      "SELECT username FROM sessions WHERE token = ?",
+      [token],
+    );
+    return session?.username ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type Session = {
     token: string;
     id: number;
@@ -115,6 +131,69 @@ const commentCreateSchema = z.object({
 const voteSchema = z.object({
   // 1 = upvote, -1 = downvote, 0 = clear vote
   value: z.number().int().refine((v) => v === 1 || v === -1 || v === 0, "invalid vote value"),
+});
+
+/*
+get request handlers
+*/
+
+app.get("/api/meals", async (req, res) => {
+  const meals = await db.all(`
+    SELECT id, strTags, strCategory, strMealThumb, strMeal FROM meals
+  `);
+  res.json(meals ?? []);
+});
+
+app.get("/api/recipe/:id/ingredients", async (req, res) => {
+  const recipeId = Number(req.params.id);
+  if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
+
+  try {
+    const ingredients = await db.all(
+      `
+      SELECT
+        i.name as name,
+        mi.measure as measure
+      FROM meal_ingredients mi
+      JOIN ingredients i ON i.id = mi.idIngredient
+      WHERE mi.idMeal = ?
+      ORDER BY i.name ASC
+      `,
+      [recipeId],
+    );
+
+    return res.json(Array.isArray(ingredients) ? ingredients : []);
+  } catch (err) {
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get("/api/recipe/:id", async (req, res) => {
+  let recipeId = req.params.id; 
+  try {
+    let recipe = await db.get("SELECT * FROM meals WHERE id = ?", [recipeId]);
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+    res.json(recipe);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
+app.get("/api/ingredient/:id", async (req, res) => {
+  let ingredientId = req.params.id; 
+  try {
+    let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
+    if (!ingredient) {
+      return res.status(404).json({ error: "Ingredient not found" });
+    }
+    res.json(ingredient);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
 });
 
 app.get("/api/recipe/:id/comments", async (req, res) => {
@@ -151,63 +230,12 @@ app.get("/api/recipe/:id/comments", async (req, res) => {
   }
 });
 
-/*
-get request handlers
-*/
-app.get("/api/meals", async (req, res) => {
-    const meals = await db.all(`
-      SELECT strTags, strCategory, strMealThumb, strMeal FROM meals
-    `);
-    res.json(meals ?? []);
-});
-
-app.get("/api/recipe/:id/ingredients", async (req, res) => {
-  let recipeId = req.params.id;
-  try {
-    let ingredients = await db.all("SELECT * FROM meal_ingredients WHERE idMeal = ?", [recipeId]);
-    if (!ingredients || ingredients.length === 0) {
-      return res.status(404).json({ error: "Ingredients not found" });
-    }
-    res.json(ingredients);
-  } catch (err) {
-    let error = err as Object;
-    return res.status(500).json({ error: error.toString() });
-  }
-});
-
-app.get("/api/recipe/:id", async (req, res) => {
-  let recipeId = req.params.id; 
-  try {
-    let recipe = await db.get("SELECT * FROM meals WHERE id = ?", [recipeId]);
-    if (!recipe) {
-      return res.status(404).json({ error: "Recipe not found" });
-    }
-    res.json(recipe);
-  } catch (err) {
-    let error = err as Object;
-    return res.status(500).json({ error: error.toString() });
-  } 
-});
-
-app.get("/api/ingredient/:id", async (req, res) => {
-  let ingredientId = req.params.id; 
-  try {
-    let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
-    if (!ingredient) {
-      return res.status(404).json({ error: "Ingredient not found" });
-    }
-    res.json(ingredient);
-  } catch (err) {
-    let error = err as Object;
-    return res.status(500).json({ error: error.toString() });
-  } 
-});
-
 /* 
 post request handlers
 */
 app.post("/api/register", limiter, async (req, res) => {
   let result = credentialsSchema.safeParse(req.body);
+
   if (!result.success) {
     return res.status(400).json({ errors: parseError(result.error) });
   }
@@ -219,6 +247,7 @@ app.post("/api/register", limiter, async (req, res) => {
       "SELECT username FROM users WHERE username = ? OR email = ?",
       [username, email],
     );
+
     if (existing) return res.status(409).json({ error: "username or email already taken" });
   } catch (err) {
     let error = err as Object;
@@ -304,7 +333,7 @@ app.post("/api/login", limiter, async (req, res) => {
 
 app.post("/api/recipe/:id/comments", async (req, res) => {
   const recipeId = Number(req.params.id);
-  
+
   if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
 
   const username = await getAuthUsername(req);
