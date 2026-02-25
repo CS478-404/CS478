@@ -3,8 +3,8 @@ import axios from 'axios';
 import { useState, useEffect } from 'react';
 import { Alert, Container, IconButton } from '@mui/material';
 import { Star, StarBorder } from '@mui/icons-material';
-
 import './App.css';
+import CommentSection from './CommentSection';
 
 interface Recipe {
     id: number;
@@ -92,7 +92,6 @@ function Recipe() {
     
     let instructions = parseInstructions(recipe?.strInstructions || '');
     let tags = recipe?.strTags ? recipe.strTags.split(',').map(tag => tag.trim()) : [];
-
     let toggleFavorite = () => {
         setIsFavorite(!isFavorite);
     };
@@ -166,10 +165,9 @@ function Recipe() {
                             </div>
                         </div>
                         <div className="comments">
-                            <p><strong>Comments:</strong></p>
-                            <p>Comments section coming soon...</p>
+                            <CommentSection recipeId={recipe.id} />
                         </div>
-                    </>
+</>
                 )}
             </div>
         </>
