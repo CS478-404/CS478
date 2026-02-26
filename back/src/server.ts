@@ -144,6 +144,11 @@ app.get("/api/meals", async (req, res) => {
   res.json(meals ?? []);
 });
 
+app.get("/api/ingredients", async (req, res) => {
+  const ingredients = await db.all(`SELECT * FROM ingredients`);
+  res.json(ingredients ?? []);
+})
+
 app.get("/api/recipe/:id/ingredients", async (req, res) => {
   const recipeId = Number(req.params.id);
   if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });

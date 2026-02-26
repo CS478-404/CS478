@@ -27,6 +27,9 @@ type Meal = {
   strMealThumb: string;
   strMeal: string;
 };
+type Ingredient = {
+  name: string
+};
 
 function blurActiveElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -53,6 +56,7 @@ function AuthOnly() {
   >("error");
 
   let [meals, setMeals] = useState<Meal[]>([]);
+  let [ingredients, setIngredients] = useState<Ingredient[]>([]);
 
   useEffect(() => {
     async function fetchMeals() {
@@ -65,6 +69,19 @@ function AuthOnly() {
     }
 
     fetchMeals();
+  }, []);
+
+  useEffect(() => {
+    async function fetchIngredients() {
+      try {
+        const res = await axios.get("/api/ingredients");
+        setIngredients(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchIngredients();
   }, []);
 
   function closeNotice() {
@@ -165,6 +182,7 @@ function AuthOnly() {
         isLoggedIn={isLoggedIn}
         username={cookies.username}
         meals={meals}
+        ingredients={ingredients}
         onLoginClick={() => openAuth("login")}
         onRegisterClick={() => openAuth("register")}
         onLogout={logout}
