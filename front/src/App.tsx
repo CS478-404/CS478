@@ -30,6 +30,9 @@ type Meal = {
   strMealThumb: string;
   strMeal: string;
 };
+type Ingredient = {
+  name: string
+};
 
 function blurActiveElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -56,6 +59,7 @@ function AuthOnly() {
   >("error");
 
   let [meals, setMeals] = useState<Meal[]>([]);
+  let [ingredients, setIngredients] = useState<Ingredient[]>([]);
   let [settingsOpen, setSettingsOpen] = useState(false);
   let [meLoading, setMeLoading] = useState(false);
   let [me, setMe] = useState<{ username: string; email: string } | null>(null);
@@ -75,6 +79,19 @@ function AuthOnly() {
     fetchMeals();
   }, []);
 
+  useEffect(() => {
+    async function fetchIngredients() {
+      try {
+        const res = await axios.get("/api/ingredients");
+        setIngredients(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchIngredients();
+  }, []);
+
   async function fetchMe() {
     if (!isLoggedIn) {
       setMe(null);
@@ -84,7 +101,7 @@ function AuthOnly() {
     setMeLoading(true);
     try {
       const res = await axios.get<MeResponse>("/api/me");
-      
+
       if (res.status === 200 && res.data?.username && res.data?.email) {
         setMe({ username: res.data.username, email: res.data.email });
       } else {
@@ -159,7 +176,7 @@ function AuthOnly() {
 
     if (authMode === "login") {
       let nextUsername = res.data?.username ?? formData.identifier;
-      
+
       if (nextUsername) setCookie("username", nextUsername, { path: "/" });
     } else {
       
@@ -233,6 +250,7 @@ function AuthOnly() {
         username={cookies.username}
         onOpenUserSettings={() => setSettingsOpen(true)}
         meals={meals}
+        ingredients={ingredients}
         onLoginClick={() => openAuth("login")}
         onRegisterClick={() => openAuth("register")}
         onLogout={logout}

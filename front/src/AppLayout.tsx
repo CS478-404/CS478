@@ -18,9 +18,11 @@ import {
     Tooltip,
     Typography
 } from "@mui/material";
+import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import MenuIcon from "@mui/icons-material/Menu";
 import {useState} from "react";
-import { useNavigate } from "react-router-dom";
+import {Form, useNavigate} from "react-router-dom";
 
 type Props = {
     isLoggedIn: boolean;
@@ -31,6 +33,9 @@ type Props = {
         strTags: string;
         strCategory: string;
         strMeal: string
+    }[];
+    ingredients: {
+        name: string;
     }[];
     onLoginClick: () => void;
     onRegisterClick: () => void;
@@ -46,6 +51,7 @@ export default function AppLayout({
                                       username,
                                       onOpenUserSettings,
                                       meals,
+                                      ingredients,
                                       onLoginClick,
                                       onRegisterClick,
                                       onLogout
@@ -54,6 +60,8 @@ export default function AppLayout({
     let [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
     let [searchInput, setSearchInput] = useState<string>("");
     let [searchQuery, setSearchQuery] = useState<string>("");
+    const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
+    const [appliedIngredients, setAppliedIngredients] = useState<string[]>([]);
 
     const toggleDrawer = (newOpen: boolean) => () => {
         setOpen(newOpen);
@@ -67,12 +75,25 @@ export default function AppLayout({
         setAnchorElUser(null);
     }
 
-    const filteredMeals =
-        searchQuery.trim() === "" ? meals : meals.filter(meal =>
-            meal.strMeal
+    const filteredMeals = meals
+        .filter(meal => {
+            if (appliedIngredients.length === 0) return true;
+
+            if (!meal.strTags) return false;
+
+            return appliedIngredients.every(ingredient =>
+                meal.strTags
+                    .toLowerCase()
+                    .includes(ingredient.toLowerCase())
+            );
+        })
+        .filter(meal => {
+            if (searchQuery.trim() === "") return true;
+
+            return meal.strMeal
                 .toLowerCase()
-                .includes(searchQuery.toLowerCase())
-        );
+                .includes(searchQuery.toLowerCase());
+        });
 
     const navigate = useNavigate();
 
@@ -85,7 +106,46 @@ export default function AppLayout({
                             <MenuIcon/>
                         </Button>
                         <Drawer open={open} onClose={toggleDrawer(false)}>
-                            whatever we decide to put here will go here
+                            <Form>
+                                <Autocomplete
+                                    multiple
+                                    options={ingredients}
+                                    disableCloseOnSelect
+                                    getOptionLabel={(ingredient) => ingredient.name}
+                                    value={ingredients.filter(i => selectedIngredients.includes(i.name))}
+                                    onChange={(_, newValue) => {
+                                        setSelectedIngredients(newValue.map(i => i.name));
+                                    }}
+                                    renderOption={(props, option, {selected}) => {
+                                        const {key, ...optionProps} = props;
+                                        const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                                        return (
+                                            <li key={key} {...optionProps}>
+                                                <SelectionIcon
+                                                    fontSize="small"
+                                                    style={{marginRight: 8, padding: 9, boxSizing: 'content-box'}}
+                                                />
+                                                {option.name}
+                                            </li>
+                                        );
+                                    }}
+                                    style={{width: 500, margin: '10px'}}
+                                    renderInput={(params) => (
+                                        <TextField {...params} label="Ingredients" placeholder="Ingredients"/>
+                                    )}
+                                />
+                                <Button
+                                    variant="contained"
+                                    sx={{ margin: '10px' }}
+                                    onClick={() => {
+                                        setAppliedIngredients(selectedIngredients);
+                                        setOpen(false);
+                                    }}
+                                >
+                                    Filter
+                                </Button>
+                            </Form>
                         </Drawer>
                     </Box>
                     <Box sx={{flexGrow: 1, display: "flex", justifyContent: "center"}}>
@@ -169,9 +229,9 @@ export default function AppLayout({
             <Grid container spacing={3} marginLeft={10} marginTop={10}>
                 {filteredMeals.map((meal, id) => (
                     <Grid key={id}>
-                        <Card 
-                            sx={{width: 250, height: 300, cursor: "pointer"}} 
-                            key={id} 
+                        <Card
+                            sx={{width: 250, height: 300, cursor: "pointer"}}
+                            key={id}
                             variant="outlined"
                             onClick={() => navigate(`/recipe/${id + 1}`)}
                             >
