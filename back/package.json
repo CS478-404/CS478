@@ -5,7 +5,7 @@
     "start": "cd dist && node server.js",
     "dev": "cd src && tsx --watch server.ts",
     "test": "vitest",
-    "data": "cd src && tsx data.ts"
+    "data": "tsx src/data.ts"
   },
   "type": "module",
   "dependencies": {

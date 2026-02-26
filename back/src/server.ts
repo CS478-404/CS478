@@ -66,6 +66,7 @@ let limiter = rateLimit({
 /*
 Auth Schemas & Helpers
 */
+
 let credentialsSchema = z.object({
     username: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_]+$/),
     password: z.string().min(8).max(100),
@@ -80,6 +81,22 @@ let loginSchema = z.object({
 function parseError(zodError: z.ZodError): string[] {
     let { formErrors, fieldErrors } = zodError.flatten();
     return [...formErrors, ...Object.entries(fieldErrors).map(([property, message]) => `${property}: ${message}`)];
+}
+
+async function getAuthUsername(req: express.Request): Promise<string | null> {
+  const token = (req as any).cookies?.token as string | undefined;
+  
+  if (!token) return null;
+
+  try {
+    const session = await db.get<{ username: string }>(
+      "SELECT username FROM sessions WHERE token = ?",
+      [token],
+    );
+    return session?.username ?? null;
+  } catch {
+    return null;
+  }
 }
 
 type Session = {
@@ -103,13 +120,114 @@ const cookieOptions: CookieOptions = {
 };
 
 /*
+Comments API
+*/
+
+const commentCreateSchema = z.object({
+  message: z.string().trim().min(1, "message is required").max(500, "message too long"),
+  parentId: z.number().int().positive().optional(),
+});
+
+const voteSchema = z.object({
+  // 1 = upvote, -1 = downvote, 0 = clear vote
+  value: z.number().int().refine((v) => v === 1 || v === -1 || v === 0, "invalid vote value"),
+});
+
+/*
 get request handlers
 */
+
 app.get("/api/meals", async (req, res) => {
-    const meals = await db.all(`
-      SELECT strTags, strCategory, strMealThumb, strMeal FROM meals
-    `);
-    res.json(meals ?? []);
+  const meals = await db.all(`
+    SELECT id, strTags, strCategory, strMealThumb, strMeal FROM meals
+  `);
+  res.json(meals ?? []);
+});
+
+app.get("/api/recipe/:id/ingredients", async (req, res) => {
+  const recipeId = Number(req.params.id);
+  if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
+
+  try {
+    const ingredients = await db.all(
+      `
+      SELECT
+        i.name as name,
+        mi.measure as measure
+      FROM meal_ingredients mi
+      JOIN ingredients i ON i.id = mi.idIngredient
+      WHERE mi.idMeal = ?
+      ORDER BY i.name ASC
+      `,
+      [recipeId],
+    );
+
+    return res.json(Array.isArray(ingredients) ? ingredients : []);
+  } catch (err) {
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
+app.get("/api/recipe/:id", async (req, res) => {
+  let recipeId = req.params.id; 
+  try {
+    let recipe = await db.get("SELECT * FROM meals WHERE id = ?", [recipeId]);
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+    res.json(recipe);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
+app.get("/api/ingredient/:id", async (req, res) => {
+  let ingredientId = req.params.id; 
+  try {
+    let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
+    if (!ingredient) {
+      return res.status(404).json({ error: "Ingredient not found" });
+    }
+    res.json(ingredient);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
+app.get("/api/recipe/:id/comments", async (req, res) => {
+  const recipeId = Number(req.params.id);
+  if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
+
+  const currentUser = await getAuthUsername(req);
+
+  try {
+    const rows = await db.all(
+      `
+      SELECT
+        c.id,
+        c.recipe_id as recipeId,
+        c.username,
+        c.parent_id as parentId,
+        c.message,
+        c.created_at as createdAt,
+        COALESCE(SUM(cv.value), 0) as score,
+        MAX(CASE WHEN cv.username = ? THEN cv.value END) as myVote
+      FROM comments c
+      LEFT JOIN comment_votes cv ON cv.comment_id = c.id
+      WHERE c.recipe_id = ?
+      GROUP BY c.id
+      ORDER BY datetime(c.created_at) ASC
+      `,
+      [currentUser ?? "", recipeId],
+    );
+
+    return res.json(rows ?? []);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
 });
 
 /* 
@@ -117,6 +235,7 @@ post request handlers
 */
 app.post("/api/register", limiter, async (req, res) => {
   let result = credentialsSchema.safeParse(req.body);
+
   if (!result.success) {
     return res.status(400).json({ errors: parseError(result.error) });
   }
@@ -128,6 +247,7 @@ app.post("/api/register", limiter, async (req, res) => {
       "SELECT username FROM users WHERE username = ? OR email = ?",
       [username, email],
     );
+
     if (existing) return res.status(409).json({ error: "username or email already taken" });
   } catch (err) {
     let error = err as Object;
@@ -211,47 +331,116 @@ app.post("/api/login", limiter, async (req, res) => {
   return res.json({ username: user.username });
 });
 
-app.get("/api/recipe/:id/ingredients", async (req, res) => {
-  let recipeId = req.params.id;
+app.post("/api/recipe/:id/comments", async (req, res) => {
+  const recipeId = Number(req.params.id);
+
+  if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
+
+  const username = await getAuthUsername(req);
+
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  const parsed = commentCreateSchema.safeParse(req.body);
+
+  if (!parsed.success) return res.status(400).json({ errors: parseError(parsed.error) });
+
+  const { message, parentId } = parsed.data;
+
   try {
-    let ingredients = await db.all("SELECT * FROM meal_ingredients WHERE idMeal = ?", [recipeId]);
-    if (!ingredients || ingredients.length === 0) {
-      return res.status(404).json({ error: "Ingredients not found" });
+    if (parentId) {
+      const parent = await db.get<{ id: number; recipe_id: number }>(
+        "SELECT id, recipe_id FROM comments WHERE id = ?",
+        [parentId],
+      );
+
+      if (!parent) return res.status(404).json({ error: "parent comment not found" });
+
+      if (parent.recipe_id !== recipeId) return res.status(400).json({ error: "invalid parent for recipe" });
     }
-    res.json(ingredients);
+
+    const createdAt = new Date().toISOString();
+    const result = await db.run(
+      "INSERT INTO comments(recipe_id, username, parent_id, message, created_at) VALUES(?, ?, ?, ?, ?)",
+      [recipeId, username, parentId ?? null, message, createdAt],
+    );
+
+    const inserted = await db.get(
+      `
+      SELECT
+        c.id,
+        c.recipe_id as recipeId,
+        c.username,
+        c.parent_id as parentId,
+        c.message,
+        c.created_at as createdAt,
+        0 as score,
+        NULL as myVote
+      FROM comments c
+      WHERE c.id = ?
+      `,
+      [result.lastID],
+    );
+
+    return res.status(201).json(inserted);
   } catch (err) {
-    let error = err as Object;
+    const error = err as Object;
     return res.status(500).json({ error: error.toString() });
   }
 });
 
-app.get("/api/recipe/:id", async (req, res) => {
-  let recipeId = req.params.id; 
+app.post("/api/comments/:commentId/vote", async (req, res) => {
+  const commentId = Number(req.params.commentId);
+
+  if (!Number.isFinite(commentId)) return res.status(400).json({ error: "invalid comment id" });
+
+  const username = await getAuthUsername(req);
+
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  const parsed = voteSchema.safeParse(req.body);
+
+  if (!parsed.success) return res.status(400).json({ errors: parseError(parsed.error) });
+
+  const { value } = parsed.data;
+
   try {
-    let recipe = await db.get("SELECT * FROM meals WHERE id = ?", [recipeId]);
-    if (!recipe) {
-      return res.status(404).json({ error: "Recipe not found" });
+    const comment = await db.get<{ id: number }>("SELECT id FROM comments WHERE id = ?", [commentId]);
+    if (!comment) return res.status(404).json({ error: "comment not found" });
+
+    if (value === 0) {
+      await db.run("DELETE FROM comment_votes WHERE comment_id = ? AND username = ?", [commentId, username]);
+    } else {
+      await db.run(
+        `
+        INSERT INTO comment_votes(comment_id, username, value, created_at)
+        VALUES(?, ?, ?, ?)
+        ON CONFLICT(comment_id, username) DO UPDATE SET value = excluded.value, created_at = excluded.created_at
+        `,
+        [commentId, username, value, new Date().toISOString()],
+      );
     }
-    res.json(recipe);
+
+    const updated = await db.get<{ score: number; myVote: number | null }>(
+      `
+      SELECT
+        COALESCE(SUM(cv.value), 0) as score,
+        MAX(CASE WHEN cv.username = ? THEN cv.value END) as myVote
+      FROM comment_votes cv
+      WHERE cv.comment_id = ?
+      `,
+      [username, commentId],
+    );
+
+    return res.json({ commentId, score: updated?.score ?? 0, myVote: updated?.myVote ?? null });
   } catch (err) {
-    let error = err as Object;
+    const error = err as Object;
     return res.status(500).json({ error: error.toString() });
-  } 
+  }
 });
 
-app.get("/api/ingredient/:id", async (req, res) => {
-  let ingredientId = req.params.id; 
-  try {
-    let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
-    if (!ingredient) {
-      return res.status(404).json({ error: "Ingredient not found" });
-    }
-    res.json(ingredient);
-  } catch (err) {
-    let error = err as Object;
-    return res.status(500).json({ error: error.toString() });
-  } 
-});
+/*
+Start Server
+*/
 
 export function startServer() {
   let port = 3000;

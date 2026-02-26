@@ -1,65 +1,82 @@
-import {useEffect, useState} from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import {useCookies} from "react-cookie";
+import { useCookies } from "react-cookie";
 import {
-    Alert,
-    Button,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogContentText,
-    DialogTitle,
-    Snackbar,
-    Stack,
-    TextField,
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Snackbar,
+  Stack,
+  TextField,
 } from "@mui/material";
 import AppLayout from "./AppLayout.tsx";
 
-axios.defaults.baseURL = "http://127.0.0.1:3000";
+axios.defaults.baseURL = "http://localhost:3000";
 axios.defaults.withCredentials = true;
 axios.defaults.validateStatus = () => true;
 
 type ApiError = { error?: string; errors?: string[] };
 type LoginResponse = { username?: string } & ApiError;
 type Meal = {
-    strTags: string;
-    strCategory: string;
-    strMealThumb: string;
-    strMeal: string;
+  strTags: string;
+  strCategory: string;
+  strMealThumb: string;
+  strMeal: string;
+};
+
+function blurActiveElement() {
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
 }
 
 function AuthOnly() {
-    let [cookies, , removeCookie] = useCookies(["token", "username"]);
-    let isLoggedIn = cookies.username !== undefined;
-    let [authOpen, setAuthOpen] = useState(false);
-    let [authMode, setAuthMode] = useState<"login" | "register">("login");
-    let [formData, setFormData] = useState({username: "", password: "", email: "", identifier: ""});
-    let [loginMessage, setLoginMessage] = useState("");
-    let [noticeOpen, setNoticeOpen] = useState(false);
-    let [noticeText, setNoticeText] = useState("");
-    let [noticeSeverity, setNoticeSeverity] = useState<
-        "success" | "info" | "warning" | "error"
-    >("error");
-    let [meals, setMeals] = useState<Meal[]>([]);
+  let [cookies, setCookie, removeCookie] = useCookies(["token", "username"]);
+  let isLoggedIn = cookies.username !== undefined;
+  let [authOpen, setAuthOpen] = useState(false);
+  let [authMode, setAuthMode] = useState<"login" | "register">("login");
+  let [formData, setFormData] = useState({
+    username: "",
+    password: "",
+    email: "",
+    identifier: "",
+  });
+  let [loginMessage, setLoginMessage] = useState("");
+  let [noticeOpen, setNoticeOpen] = useState(false);
+  let [noticeText, setNoticeText] = useState("");
+  let [noticeSeverity, setNoticeSeverity] = useState<
+    "success" | "info" | "warning" | "error"
+  >("error");
 
-    useEffect(() => {
-        async function fetchMeals() {
-            try {
-                const res = await axios.get("/api/meals");
-                setMeals(res.data);
-            } catch (err) {
-                console.log(err);
-                console.error(err);
-            }
-        }
+  let [meals, setMeals] = useState<Meal[]>([]);
 
-        fetchMeals();
-    }, []);
+  useEffect(() => {
+    async function fetchMeals() {
+      try {
+        const res = await axios.get("/api/meals");
+        setMeals(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchMeals();
+  }, []);
+
+  function closeNotice() {
+    blurActiveElement();
+    setNoticeOpen(false);
+  }
 
   function showNotice(
-      text: string,
-      severity: "success" | "info" | "warning" | "error" = "error",
+    text: string,
+    severity: "success" | "info" | "warning" | "error" = "error",
   ) {
+    blurActiveElement();
     setNoticeText(text);
     setNoticeSeverity(severity);
     setNoticeOpen(true);
@@ -70,6 +87,7 @@ function AuthOnly() {
   }
 
   function openAuth(mode: "login" | "register") {
+    blurActiveElement();
     setAuthMode(mode);
     setLoginMessage("");
     setAuthOpen(true);
@@ -78,24 +96,27 @@ function AuthOnly() {
   function closeAuth() {
     setAuthOpen(false);
     setLoginMessage("");
-    setFormData({username: "", password: "", email: "", identifier: ""});
+    setFormData({ username: "", password: "", email: "", identifier: "" });
   }
 
-  let handleFormChange: React.ChangeEventHandler<HTMLInputElement> = (
-      event,
-  ) => {
+  let handleFormChange: React.ChangeEventHandler<HTMLInputElement> = (event) => {
     setLoginMessage("");
-    setFormData({...formData, [event.target.name]: event.target.value});
+    setFormData({ ...formData, [event.target.name]: event.target.value });
   };
 
   async function submitAuth() {
     setLoginMessage("");
+
     let url = authMode === "login" ? "/api/login" : "/api/register";
     let expectedStatus = authMode === "login" ? 200 : 201;
     let payload =
-        authMode === "login"
-            ? {identifier: formData.identifier, password: formData.password}
-            : {username: formData.username, email: formData.email, password: formData.password};
+      authMode === "login"
+        ? { identifier: formData.identifier, password: formData.password }
+        : {
+            username: formData.username,
+            email: formData.email,
+            password: formData.password,
+          };
     let res = await axios.post<LoginResponse>(url, payload);
 
     if (res.status !== expectedStatus) {
@@ -103,17 +124,22 @@ function AuthOnly() {
       return;
     }
 
+    if (authMode === "login") {
+      let nextUsername = res.data?.username ?? formData.identifier;
+      if (nextUsername) setCookie("username", nextUsername, { path: "/" });
+    } else {
+      
+      if (formData.username) setCookie("username", formData.username, { path: "/" });
+    }
+
     closeAuth();
-    showNotice(
-        authMode === "login" ? "Logged in." : "Account created.",
-        "success",
-    );
+    showNotice(authMode === "login" ? "Logged in." : "Account created.", "success");
   }
 
   async function logout() {
     await axios.post("/api/logout");
-    removeCookie("token", {path: "/"});
-    removeCookie("username", {path: "/"});
+    removeCookie("token", { path: "/" });
+    removeCookie("username", { path: "/" });
     showNotice("Logged out.", "info");
   }
 
@@ -122,11 +148,11 @@ function AuthOnly() {
       <Snackbar
         open={noticeOpen}
         autoHideDuration={4500}
-        onClose={() => setNoticeOpen(false)}
+        onClose={closeNotice}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
-          onClose={() => setNoticeOpen(false)}
+          onClose={closeNotice}
           severity={noticeSeverity}
           variant="filled"
           sx={{ width: "100%" }}
@@ -135,19 +161,18 @@ function AuthOnly() {
         </Alert>
       </Snackbar>
 
-            <AppLayout
-                isLoggedIn={isLoggedIn}
-                username={cookies.username}
-                meals={meals}
-                onLoginClick={() => openAuth("login")}
-                onRegisterClick={() => openAuth("register")}
-                onLogout={logout}>
-            </AppLayout>
+      <AppLayout
+        isLoggedIn={isLoggedIn}
+        username={cookies.username}
+        meals={meals}
+        onLoginClick={() => openAuth("login")}
+        onRegisterClick={() => openAuth("register")}
+        onLogout={logout}
+      />
 
-      <Dialog open={authOpen} onClose={closeAuth}>
-        <DialogTitle>
-          {authMode === "login" ? "Log in" : "Create account"}
-        </DialogTitle>
+      <Dialog open={authOpen} onClose={closeAuth} disableRestoreFocus>
+        <DialogTitle>{authMode === "login" ? "Log in" : "Create account"}</DialogTitle>
+
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
             {authMode === "login"
@@ -193,12 +218,20 @@ function AuthOnly() {
               onChange={handleFormChange}
               size="small"
             />
+
             {loginMessage && <Alert severity="error">{loginMessage}</Alert>}
           </Stack>
         </DialogContent>
+
         <DialogActions>
           <Button onClick={closeAuth}>Cancel</Button>
-          <Button variant="contained" onClick={submitAuth}>
+          <Button
+            variant="contained"
+            onClick={(event) => {
+              (event.currentTarget as HTMLElement).blur();
+              submitAuth();
+            }}
+          >
             {authMode === "login" ? "Log in" : "Create"}
           </Button>
         </DialogActions>
