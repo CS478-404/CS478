@@ -124,11 +124,8 @@ h2 {
   padding: 24px !important;
 }
 
-.favorite-button .MuiTouchRipple-root {
-  display: none !important;
-}
 
-.favorite-button:focus,
-.favorite-button:focus-visible {
+.MuiIconButton-root:focus,
+.MuiIconButton-root:focus-visible {
   outline: none !important;
 }
