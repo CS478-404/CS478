@@ -119,6 +119,29 @@ const cookieOptions: CookieOptions = {
     path: "/",
 };
 
+const tagOptions = [
+    "Alcoholic", "BBQ", "Baking", "Beans", "Breakfast", "Brunch", "Bun", "Cake", "Calorific", "Caramel",
+    "Casserole", "Celebration", "Cheap", "Cheesy", "Chilli", "Chocolate", "Christmas", "Curry", "Dairy", "DateNight",
+    "Dessert", "DinnerParty", "Easter", "Egg", "Eid", "Expensive", "Fish", "Fresh", "Fruity", "Fusion",
+    "Glazed", "Greasy", "Halloween", "HangoverFood", "Heavy", "HighFat", "Kebab", "Keto", "Light", "LowCalorie",
+    "LowCarbs", "MainMeal", "Meat", "Mild", "Nutty", "Onthego", "Paella", "Paleo", "Pancake", "Party",
+    "Pasta", "Pie", "Pulse", "Pudding", "Salad", "Sandwich", "Sausages", "Savory", "Seafood", "Shellfish",
+    "SideDish", "Snack", "Soup", "Sour", "Speciality", "Spicy", "Stew", "Streetfood", "StrongFlavor", "Summer",
+    "Sweet", "Tart", "Treat", "UnHealthy", "Vegan", "Vegetables", "Vegetarian", "Warm", "Warming"
+];
+
+const categories = [
+    "Beef", "Chicken", "Dessert", "Lamb", "Miscellaneous", "Pasta", "Pork", "Seafood", 
+    "Side", "Starter", "Vegan", "Vegetarian", "Breakfast", "Goat", "Other"
+];
+
+const areas = [
+    "Algerian", "American", "Argentinian", "Australian", "British", "Canadian", "Chinese", "Croatian", "Dutch", 
+    "Egyptian", "Filipino", "French", "Greek", "Indian", "Irish", "Italian", "Jamaican", "Japanese", "Kenyan", "Malaysian", 
+    "Mexican", "Moroccan", "Norwegian", "Polish", "Portuguese", "Russian", "Saudi Arabian", "Slovakian", "Spanish", 
+    "Syrian","Thai", "Tunisian", "Turkish", "Ukranian", "Uruguayan", "Venezuelan", "Unknown", "Vietnamese", "Other"
+];
+
 /*
 Comments API
 */
@@ -149,18 +172,11 @@ app.get("/api/recipe/:id/ingredients", async (req, res) => {
   if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
 
   try {
-    const ingredients = await db.all(
-      `
-      SELECT
-        i.name as name,
-        mi.measure as measure
-      FROM meal_ingredients mi
-      JOIN ingredients i ON i.id = mi.idIngredient
-      WHERE mi.idMeal = ?
-      ORDER BY i.name ASC
-      `,
-      [recipeId],
-    );
+    const ingredients = await db.all("SELECT * FROM meal_ingredients WHERE idMeal = ?", [recipeId]);
+
+    if (!ingredients || ingredients.length === 0) {
+      return res.status(404).json({ error: "Ingredients not found" });
+    }
 
     return res.json(Array.isArray(ingredients) ? ingredients : []);
   } catch (err) {
@@ -186,6 +202,19 @@ app.get("/api/ingredient/:id", async (req, res) => {
   let ingredientId = req.params.id; 
   try {
     let ingredient = await db.get("SELECT * FROM ingredients WHERE id = ?", [ingredientId]);
+    if (!ingredient) {
+      return res.status(404).json({ error: "Ingredient not found" });
+    }
+    res.json(ingredient);
+  } catch (err) {
+    let error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  } 
+});
+
+app.get("/api/ingredient", async (req, res) => {
+  try {
+    let ingredient = await db.all("SELECT * FROM ingredients");
     if (!ingredient) {
       return res.status(404).json({ error: "Ingredient not found" });
     }
@@ -435,6 +464,72 @@ app.post("/api/comments/:commentId/vote", async (req, res) => {
   } catch (err) {
     const error = err as Object;
     return res.status(500).json({ error: error.toString() });
+  }
+});
+
+app.post("/api/recipes", async (req, res) => {
+  const username = await getAuthUsername(req);
+  if (!username) return res.status(401).json({ error: "Login required" });
+
+  const { name, category, area, instructions, ingredients, tags, thumbnail } = req.body;
+
+  const errors: string[] = [];
+
+  if (!name || typeof name !== "string") errors.push("Missing or invalid name");
+  if (!category || typeof category !== "string") errors.push("Missing or invalid category");
+  if (!area || typeof area !== "string") errors.push("Missing or invalid area");
+  if (!instructions || typeof instructions !== "string") errors.push("Missing or invalid instructions");
+  if (!Array.isArray(ingredients) || ingredients.length === 0) errors.push("Missing or invalid ingredients");
+  if (!thumbnail || typeof thumbnail !== "string") errors.push("Missing or invalid thumbnail");
+
+  if (category && !categories.includes(category)) errors.push("Invalid category");
+  if (area && !areas.includes(area)) errors.push("Invalid area");
+  if (tags && (!Array.isArray(tags) || tags.some((t: string) => !tagOptions.includes(t)))) errors.push("Invalid tags");
+
+  if (Array.isArray(ingredients)) {
+    ingredients.forEach((ing, idx) => {
+      if (!ing.name || typeof ing.name !== "string") {
+        errors.push(`Ingredient at position ${idx + 1} is missing a name`);
+      }
+    });
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
+  try {
+    const result = await db.run(
+      `INSERT INTO meals (strMeal, strCategory, strArea, strInstructions, strMealThumb, strTags, createdBy)
+        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      name.trim(),
+      category,
+      area,
+      instructions,
+      thumbnail,
+      tags && Array.isArray(tags) ? tags.join(",") : null,
+      username
+    );
+    const mealId = result.lastID;
+
+    for (const ing of ingredients) {
+      if (!ing.name || typeof ing.name !== "string") continue;
+      let ingredient = await db.get("SELECT id FROM ingredients WHERE LOWER(name) = LOWER(?)", [ing.name]);
+      if (!ingredient) {
+        const ingResult = await db.run("INSERT INTO ingredients (name) VALUES (?)", [ing.name]);
+        ingredient = { id: ingResult.lastID };
+      }
+      await db.run(
+        "INSERT INTO meal_ingredients (idMeal, idIngredient, measure) VALUES (?, ?, ?)",
+        mealId,
+        ingredient.id,
+        ing.measure || ""
+      );
+    }
+
+    return res.status(201).json({ id: mealId });
+  } catch (err) {
+    return res.status(500).json({ error: String(err) });
   }
 });
 
