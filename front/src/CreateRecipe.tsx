@@ -11,7 +11,6 @@ import { Autocomplete } from "@mui/material";
 import axios from "axios";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from '@mui/icons-material/Close';
-import Chip from "@mui/material/Chip";
 import Alert from '@mui/material/Alert';
 
 function CreateRecipe() {
@@ -234,17 +233,19 @@ function CreateRecipe() {
                                     {option}
                                 </li>
                             )}
-                            ChipProps={{
-                                sx: {
-                                    background: '#e0e0e0',
-                                    borderRadius: 1,
-                                    px: 1,
-                                    py: 0.5,
-                                    mr: 1,
-                                    mb: 1,
-                                    '.MuiChip-label': { color: 'black', fontWeight: 500 }
-                                },
-                                deleteIcon: <CloseIcon fontSize="small" />
+                            slotProps={{
+                                chip: {
+                                    sx: {
+                                        background: '#e0e0e0',
+                                        borderRadius: 1,
+                                        px: 1,
+                                        py: 0.5,
+                                        mr: 1,
+                                        mb: 1,
+                                        '.MuiChip-label': { color: 'black', fontWeight: 500 }
+                                    },
+                                    deleteIcon: <CloseIcon fontSize="small" />
+                                }
                             }}
                         />
                         <Autocomplete
