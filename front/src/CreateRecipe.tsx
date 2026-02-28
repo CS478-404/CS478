@@ -12,6 +12,7 @@ import axios from "axios";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CloseIcon from '@mui/icons-material/Close';
 import Alert from '@mui/material/Alert';
+import { useNavigate } from "react-router-dom";
 
 function CreateRecipe() {
     interface FormData {
@@ -23,6 +24,8 @@ function CreateRecipe() {
         thumbnail: string;
     }
 
+    const navigate = useNavigate();
+
     const [formData, setFormData] = useState<FormData>({
         name: "",
         category: "",
@@ -33,7 +36,6 @@ function CreateRecipe() {
     });
         
     const [error, setError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [ingredients, setIngredients] = useState<{ id: number; name: string }[]>([]);
     const [ingredientFields, setIngredientFields] = useState<{ name: string; measure: string }[]>([
         { name: "", measure: "" }
@@ -76,7 +78,6 @@ function CreateRecipe() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setSuccessMessage(null);
 
         try {
             const instructionsString = formData.instructions
@@ -105,10 +106,8 @@ function CreateRecipe() {
                 throw new Error(res.data?.error ||  res.data?.errors);
             }
 
-            setSuccessMessage("Recipe created successfully!");
-            setTimeout(() => setSuccessMessage(null), 3500);
+            navigate(`/recipe/${res.data.id}`);
         } catch (err) {
-            setSuccessMessage(null);
             if (axios.isAxiosError(err)) {
                 if (err.response?.data?.errors) {
                     setError("Failed to create recipe: " + err.response.data.errors.join(", "));
@@ -178,17 +177,11 @@ function CreateRecipe() {
 
     return (
         <>
-            {(successMessage || error) && (
+            {error && (
                 <div className="alert-container">
-                    {successMessage ? (
-                    <Alert severity="success">
-                        {successMessage}
-                    </Alert>
-                    ) : (
                     <Alert severity="error">
                         {error}
                     </Alert>
-                    )}
                 </div>
             )}
             <Container>
@@ -221,7 +214,6 @@ function CreateRecipe() {
                         />
                         <Autocomplete
                             multiple
-                            freeSolo
                             options={tagOptions}
                             value={formData.tags}
                             onChange={(_e, value) => handleFormChange("tags", value)}
@@ -249,7 +241,6 @@ function CreateRecipe() {
                             }}
                         />
                         <Autocomplete
-                            freeSolo
                             options={categories}
                             value={formData.category}
                             onChange={(_e, value) => handleFormChange("category", value || "")}
@@ -280,10 +271,10 @@ function CreateRecipe() {
                                 />
                                 <Autocomplete
                                     freeSolo
-
                                     options={ingredients.map(i => i.name)}
                                     value={field.name}
                                     onChange={(_e, v) => handleIngredientChange(idx, v)}
+                                    onInputChange={(_e, v) => handleIngredientChange(idx, v)}
                                     renderInput={(params) => (
                                         <TextField {...params} label={`Ingredient ${idx + 1}`} fullWidth required/>
                                     )}
