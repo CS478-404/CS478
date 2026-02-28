@@ -63,31 +63,13 @@ function Recipe() {
 
     let parseInstructions = (instructions: string) => {
         if (!instructions) return [];
-        
-        let lines = instructions.split(/\r\n|\r|\n/).filter(line => line.trim() !== '');
-        let steps = [];
-        
-        for (let line of lines) {
-            line = line.trim();
-            
-            let stepMatch = line.match(/^step\s*(\d+)/i);
-            if (stepMatch) {
-                let stepText = line.replace(/^step\s*\d+\s*/i, '').trim();
-                if (stepText) {
-                    steps.push(stepText);
-                }
-            } else if (line.length > 0) {
-                if (steps.length === 0 || line.length > 50) {
-                    steps.push(line);
-                } else {
-                    if (steps.length > 0) {
-                        steps[steps.length - 1] += ' ' + line;
-                    }
-                }
-            }
-        }
-        
-        return steps;
+        return instructions
+            .split(/\r\n|\r|\n/)
+            .map(line => line.trim())
+            .filter(line => 
+                line.length > 0 &&
+                !/^(step\s*\d+|\d+\.)$/i.test(line)
+            );
     };
     
     let instructions = parseInstructions(recipe?.strInstructions || '');
