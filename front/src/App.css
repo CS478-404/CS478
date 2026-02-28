@@ -129,3 +129,11 @@ h2 {
 .MuiIconButton-root:focus-visible {
   outline: none !important;
 }
+
+.alert-container {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 9999;
+  min-width: 300px;
+}
