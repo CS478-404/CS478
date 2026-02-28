@@ -37,7 +37,8 @@ async function ensureSchema(db: Database) {
       strImageSource TEXT,
       strCreativeCommonsConfirmed TEXT,
       dateModified TEXT,
-      rating INTEGER
+      rating INTEGER,
+      createdBy TEXT
     );
   `);
 
@@ -115,10 +116,9 @@ async function mealToDb() {
       try {
         const insertMealResult = await db.run(
           `INSERT OR IGNORE INTO meals
-            (idMeal, strMeal, strCategory, strArea, strInstructions,
-             strMealThumb, strTags, strYoutube, strSource, strImageSource, dateModified)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          meal.idMeal,
+            (strMeal, strCategory, strArea, strInstructions, strMealThumb, 
+            strTags, strYoutube, strSource, strImageSource, dateModified, createdBy)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           meal.strMeal,
           meal.strCategory,
           meal.strArea,
@@ -128,7 +128,8 @@ async function mealToDb() {
           meal.strYoutube,
           meal.strSource,
           meal.strImageSource,
-          meal.dateModified
+          meal.dateModified,
+          "admin" 
         );
 
         let internalMealId: number;
