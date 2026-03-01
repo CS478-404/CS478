@@ -156,6 +156,12 @@ const voteSchema = z.object({
   value: z.number().int().refine((v) => v === 1 || v === -1 || v === 0, "invalid vote value"),
 });
 
+const commentEditSchema = z
+  .object({
+    message: z.string().trim().min(1, "message is required").max(500, "message too long"),
+  })
+  .strict();
+
 /*
 get request handlers
 */
@@ -262,6 +268,7 @@ app.get("/api/recipe/:id/comments", async (req, res) => {
 /* 
 post request handlers
 */
+
 app.post("/api/register", limiter, async (req, res) => {
   let result = credentialsSchema.safeParse(req.body);
 
@@ -530,6 +537,106 @@ app.post("/api/recipes", async (req, res) => {
     return res.status(201).json({ id: mealId });
   } catch (err) {
     return res.status(500).json({ error: String(err) });
+  }
+});
+
+/* 
+patch request handlers
+*/
+
+app.patch("/api/comments/:commentId", async (req, res) => {
+  const commentId = Number(req.params.commentId);
+  if (!Number.isFinite(commentId)) return res.status(400).json({ error: "invalid comment id" });
+
+  const username = await getAuthUsername(req);
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  const parsed = commentEditSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ errors: parseError(parsed.error) });
+
+  const { message } = parsed.data;
+
+  try {
+    const existing = await db.get<{ username: string; message: string; deleted_at: string | null }>(
+      "SELECT username, message, deleted_at FROM comments WHERE id = ?",
+      [commentId],
+    );
+
+    if (!existing) return res.status(404).json({ error: "comment not found" });
+
+    if (existing.username !== username) return res.status(403).json({ error: "not your comment" });
+
+    if (existing.deleted_at) return res.status(409).json({ error: "comment was deleted" });
+
+    if (existing.message !== message) {
+      await db.run("UPDATE comments SET message = ?, edited_at = ? WHERE id = ?", [
+        message,
+        new Date().toISOString(),
+        commentId,
+      ]);
+    }
+
+    const updated = await db.get(
+      `
+      SELECT
+        c.id,
+        c.recipe_id as recipeId,
+        c.username,
+        c.parent_id as parentId,
+        c.message,
+        c.created_at as createdAt,
+        c.edited_at as editedAt,
+        c.deleted_at as deletedAt,
+        COALESCE(SUM(cv.value), 0) as score,
+        MAX(CASE WHEN cv.username = ? THEN cv.value END) as myVote
+      FROM comments c
+      LEFT JOIN comment_votes cv ON cv.comment_id = c.id
+      WHERE c.id = ?
+      GROUP BY c.id
+      `,
+      [username, commentId],
+    );
+
+    return res.json(updated);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
+/* 
+delete request handlers
+*/
+
+app.delete("/api/comments/:commentId", async (req, res) => {
+  const commentId = Number(req.params.commentId);
+  if (!Number.isFinite(commentId)) return res.status(400).json({ error: "invalid comment id" });
+
+  const username = await getAuthUsername(req);
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  try {
+    const existing = await db.get<{ username: string; deleted_at: string | null }>(
+      "SELECT username, deleted_at FROM comments WHERE id = ?",
+      [commentId],
+    );
+
+    if (!existing) return res.status(404).json({ error: "comment not found" });
+
+    if (existing.username !== username) return res.status(403).json({ error: "not your comment" });
+
+    if (existing.deleted_at) return res.status(204).send();
+
+    await db.run("UPDATE comments SET message = ?, deleted_at = ? WHERE id = ?", [
+      "[deleted]",
+      new Date().toISOString(),
+      commentId,
+    ]);
+
+    return res.status(204).send();
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
   }
 });
 

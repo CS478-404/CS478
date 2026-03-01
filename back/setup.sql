@@ -62,6 +62,8 @@ CREATE TABLE comments (
     parent_id INTEGER,
     message TEXT NOT NULL,
     created_at TEXT NOT NULL,
+    edited_at TEXT,
+    deleted_at TEXT,
     FOREIGN KEY(recipe_id) REFERENCES meals(id) ON DELETE CASCADE,
     FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE,
     FOREIGN KEY(parent_id) REFERENCES comments(id) ON DELETE CASCADE
