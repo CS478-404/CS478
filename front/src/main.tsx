@@ -5,6 +5,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import './index.css'
 import App from './App.tsx'
 import Recipe from './Recipe.tsx';
+import CreateRecipe from './CreateRecipe.tsx';
 
 let router = createBrowserRouter([
   {
@@ -15,6 +16,10 @@ let router = createBrowserRouter([
     path: "/recipe/:id",
     element: <Recipe />
   },
+  {
+    path: "/create",
+    element: <CreateRecipe />
+  }
 ]);
 
 

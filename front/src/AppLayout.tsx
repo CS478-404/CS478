@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import {useState} from "react";
+import { useNavigate } from "react-router-dom";
 
 type Props = {
     isLoggedIn: boolean;
@@ -70,6 +71,8 @@ export default function AppLayout({
                 .toLowerCase()
                 .includes(searchQuery.toLowerCase())
         );
+
+    const navigate = useNavigate();
 
     return (
         <>
@@ -156,7 +159,12 @@ export default function AppLayout({
             <Grid container spacing={3} marginLeft={10} marginTop={10}>
                 {filteredMeals.map((meal, id) => (
                     <Grid key={id}>
-                        <Card sx={{width: 250, height: 300}} key={id} variant="outlined">
+                        <Card 
+                            sx={{width: 250, height: 300, cursor: "pointer"}} 
+                            key={id} 
+                            variant="outlined"
+                            onClick={() => navigate(`/recipe/${id + 1}`)}
+                            >
                             <CardMedia
                                 component="img"
                                 sx={{maxHeight: 200}}

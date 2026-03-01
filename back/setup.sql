@@ -11,7 +11,8 @@ CREATE TABLE meals (
     strImageSource TEXT,
     strCreativeCommonsConfirmed TEXT,
     dateModified TEXT,
-    rating INTEGER
+    rating INTEGER,
+    createdBy TEXT
 );
 
 CREATE TABLE ingredients (
