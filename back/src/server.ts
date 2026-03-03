@@ -78,6 +78,13 @@ let loginSchema = z.object({
     password: z.string().min(8).max(100),
 }).strict();
 
+let changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8).max(100),
+    newPassword: z.string().min(8).max(100),
+  })
+  .strict();
+
 function parseError(zodError: z.ZodError): string[] {
     let { formErrors, fieldErrors } = zodError.flatten();
     return [...formErrors, ...Object.entries(fieldErrors).map(([property, message]) => `${property}: ${message}`)];
@@ -265,6 +272,26 @@ app.get("/api/recipe/:id/comments", async (req, res) => {
   }
 });
 
+app.get("/api/me", async (req, res) => {
+  const username = await getAuthUsername(req);
+  
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  try {
+    const user = await db.get<{ username: string; email: string }>(
+      "SELECT username, email FROM users WHERE username = ?",
+      [username],
+    );
+
+    if (!user) return res.status(404).json({ error: "user not found" });
+
+    return res.json(user);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
 /* 
 post request handlers
 */
@@ -365,6 +392,66 @@ app.post("/api/login", limiter, async (req, res) => {
   res.cookie("token", token, cookieOptions);
   res.cookie("username", user.username, { ...cookieOptions, httpOnly: false });
   return res.json({ username: user.username });
+});
+
+app.post("/api/logout", async (req, res) => {
+  const token = (req as any).cookies?.token as string | undefined;
+  const username = await getAuthUsername(req);
+
+  try {
+    if (token) await db.run("DELETE FROM sessions WHERE token = ?", [token]);
+
+    if (!token && username) await db.run("DELETE FROM sessions WHERE username = ?", [username]);
+  } catch {
+  }
+
+  res.clearCookie("token", cookieOptions);
+  res.clearCookie("username", { ...cookieOptions, httpOnly: false });
+  return res.json({ ok: true });
+});
+
+app.post("/api/me/password", async (req, res) => {
+  const username = await getAuthUsername(req);
+
+  if (!username) return res.status(401).json({ error: "login required" });
+
+  const parsed = changePasswordSchema.safeParse(req.body);
+
+  if (!parsed.success) return res.status(400).json({ errors: parseError(parsed.error) });
+
+  const { currentPassword, newPassword } = parsed.data;
+  
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ error: "new password must be different" });
+  }
+
+  try {
+    const user = await db.get<{ password_hash: string }>(
+      "SELECT password_hash FROM users WHERE username = ?",
+      [username],
+    );
+
+    if (!user) return res.status(404).json({ error: "user not found" });
+
+    const ok = await argon2.verify(user.password_hash, currentPassword);
+
+    if (!ok) return res.status(401).json({ error: "invalid current password" });
+
+    const nextHash = await argon2.hash(newPassword, { type: argon2.argon2id });
+    await db.run("UPDATE users SET password_hash = ? WHERE username = ?", [nextHash, username]);
+    const token = (req as any).cookies?.token as string | undefined;
+
+    if (token) {
+      await db.run("DELETE FROM sessions WHERE username = ? AND token != ?", [username, token]);
+    } else {
+      await db.run("DELETE FROM sessions WHERE username = ?", [username]);
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
 });
 
 app.post("/api/recipe/:id/comments", async (req, res) => {
