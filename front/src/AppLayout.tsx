@@ -25,6 +25,7 @@ import { useNavigate } from "react-router-dom";
 type Props = {
     isLoggedIn: boolean;
     username?: string;
+    onOpenUserSettings: () => void;
     meals: {
         strMealThumb: string;
         strTags: string;
@@ -43,6 +44,7 @@ function FavoriteIcon() {
 export default function AppLayout({
                                       isLoggedIn,
                                       username,
+                                      onOpenUserSettings,
                                       meals,
                                       onLoginClick,
                                       onRegisterClick,
@@ -131,6 +133,14 @@ export default function AppLayout({
                                     open={Boolean(anchorElUser)}
                                     onClose={handleCloseUserMenu}
                                 >
+                                    <MenuItem
+                                        onClick={() => {
+                                            handleCloseUserMenu();
+                                            onOpenUserSettings();
+                                        }}
+                                    >
+                                        <Button variant="text">User Settings</Button>
+                                    </MenuItem>
                                     <MenuItem>
                                         <Button variant="text">
                                             My Recipes
