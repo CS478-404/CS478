@@ -4,6 +4,8 @@ import { useCookies } from "react-cookie";
 import {
   Alert,
   Button,
+  Box,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,6 +23,7 @@ axios.defaults.validateStatus = () => true;
 
 type ApiError = { error?: string; errors?: string[] };
 type LoginResponse = { username?: string } & ApiError;
+type MeResponse = { username: string; email: string } & ApiError;
 type Meal = {
   strTags: string;
   strCategory: string;
@@ -53,6 +56,11 @@ function AuthOnly() {
   >("error");
 
   let [meals, setMeals] = useState<Meal[]>([]);
+  let [settingsOpen, setSettingsOpen] = useState(false);
+  let [meLoading, setMeLoading] = useState(false);
+  let [me, setMe] = useState<{ username: string; email: string } | null>(null);
+  let [pwForm, setPwForm] = useState({ currentPassword: "", newPassword: "", confirm: "" });
+  let [pwSaving, setPwSaving] = useState(false);
 
   useEffect(() => {
     async function fetchMeals() {
@@ -66,6 +74,31 @@ function AuthOnly() {
 
     fetchMeals();
   }, []);
+
+  async function fetchMe() {
+    if (!isLoggedIn) {
+      setMe(null);
+      return;
+    }
+
+    setMeLoading(true);
+    try {
+      const res = await axios.get<MeResponse>("/api/me");
+      
+      if (res.status === 200 && res.data?.username && res.data?.email) {
+        setMe({ username: res.data.username, email: res.data.email });
+      } else {
+        setMe(null);
+      }
+    } finally {
+      setMeLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchMe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn]);
 
   function closeNotice() {
     blurActiveElement();
@@ -126,6 +159,7 @@ function AuthOnly() {
 
     if (authMode === "login") {
       let nextUsername = res.data?.username ?? formData.identifier;
+      
       if (nextUsername) setCookie("username", nextUsername, { path: "/" });
     } else {
       
@@ -133,6 +167,7 @@ function AuthOnly() {
     }
 
     closeAuth();
+    await fetchMe();
     showNotice(authMode === "login" ? "Logged in." : "Account created.", "success");
   }
 
@@ -140,7 +175,39 @@ function AuthOnly() {
     await axios.post("/api/logout");
     removeCookie("token", { path: "/" });
     removeCookie("username", { path: "/" });
+    setMe(null);
+    setSettingsOpen(false);
     showNotice("Logged out.", "info");
+  }
+
+  async function savePasswordChange() {
+    if (!pwForm.currentPassword || !pwForm.newPassword) {
+      showNotice("Please fill out all password fields.", "warning");
+      return;
+    }
+
+    if (pwForm.newPassword !== pwForm.confirm) {
+      showNotice("New password and confirmation do not match.", "warning");
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      const res = await axios.post<ApiError>("/api/me/password", {
+        currentPassword: pwForm.currentPassword,
+        newPassword: pwForm.newPassword,
+      });
+
+      if (res.status !== 200) {
+        showNotice(apiErrorText(res.data, "Password update failed"), "error");
+        return;
+      }
+
+      setPwForm({ currentPassword: "", newPassword: "", confirm: "" });
+      showNotice("Password updated.", "success");
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   return (
@@ -164,11 +231,85 @@ function AuthOnly() {
       <AppLayout
         isLoggedIn={isLoggedIn}
         username={cookies.username}
+        onOpenUserSettings={() => setSettingsOpen(true)}
         meals={meals}
         onLoginClick={() => openAuth("login")}
         onRegisterClick={() => openAuth("register")}
         onLogout={logout}
       />
+
+      <Dialog
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false);
+          setPwForm({ currentPassword: "", newPassword: "", confirm: "" });
+        }}
+        disableRestoreFocus
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>User Settings</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Username"
+              value={me?.username ?? cookies.username ?? ""}
+              size="small"
+              InputProps={{ readOnly: true }}
+            />
+            <TextField
+              label="Email"
+              value={me?.email ?? (meLoading ? "Loading..." : "")}
+              size="small"
+              InputProps={{ readOnly: true }}
+            />
+
+            <Divider />
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Box sx={{ fontWeight: 600 }}>Change Password</Box>
+              <TextField
+                label="Current password"
+                type="password"
+                size="small"
+                value={pwForm.currentPassword}
+                onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })}
+              />
+              <TextField
+                label="New password"
+                type="password"
+                size="small"
+                value={pwForm.newPassword}
+                onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })}
+              />
+              <TextField
+                label="Confirm new password"
+                type="password"
+                size="small"
+                value={pwForm.confirm}
+                onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+              />
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setSettingsOpen(false);
+              setPwForm({ currentPassword: "", newPassword: "", confirm: "" });
+            }}
+          >
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            onClick={savePasswordChange}
+            disabled={pwSaving || meLoading}
+          >
+            Save Password
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={authOpen} onClose={closeAuth} disableRestoreFocus>
         <DialogTitle>{authMode === "login" ? "Log in" : "Create account"}</DialogTitle>
