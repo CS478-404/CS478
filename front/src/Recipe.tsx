@@ -1,7 +1,7 @@
-import { useParams } from 'react-router-dom';
+import {useNavigate, useParams} from 'react-router-dom';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
-import { Alert, Container, IconButton } from '@mui/material';
+import {Alert, Breadcrumbs, Container, IconButton, Link, Typography} from '@mui/material';
 import { Star, StarBorder } from '@mui/icons-material';
 import './App.css';
 import CommentSection from './CommentSection';
@@ -26,6 +26,7 @@ function Recipe() {
     let [error, setError] = useState<string | null>(null);
     let [loading, setLoading] = useState(true);
     let [isFavorite, setIsFavorite] = useState(false);
+    let navigate = useNavigate();
 
     useEffect(() => {
         let fetchRecipe = async () => {
@@ -105,6 +106,17 @@ function Recipe() {
                 </div>
                 {recipe && (
                     <>
+                        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+                            <Link
+                                underline="hover"
+                                color="inherit"
+                                onClick={() => navigate("/")}
+                                sx={{ cursor: "pointer" }}
+                            >
+                                Home
+                            </Link>
+                            <Typography color="text.primary">{recipe.strMeal}</Typography>
+                        </Breadcrumbs>
                         <div className="details">
                             <img src={recipe.strMealThumb} alt={recipe.strMeal}></img>
                             <div className="recipe-info">
