@@ -5,6 +5,7 @@ import {
     Box,
     Button,
     Card,
+    CardActionArea,
     CardActions,
     CardContent,
     CardMedia,
@@ -21,13 +22,14 @@ import {
 import CheckBoxOutlineBlankIcon from '@mui/icons-material/CheckBoxOutlineBlank';
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import MenuIcon from "@mui/icons-material/Menu";
-import {useState} from "react";
-import {Form} from "react-router-dom";
+import {useEffect, useState} from "react";
+import {Form, useNavigate} from "react-router-dom";
 
 type Props = {
     isLoggedIn: boolean;
     username?: string;
     meals: {
+        id: string;
         strMealThumb: string;
         strTags: string;
         strCategory: string;
@@ -59,7 +61,12 @@ export default function AppLayout({
     let [searchInput, setSearchInput] = useState<string>("");
     let [searchQuery, setSearchQuery] = useState<string>("");
     const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
-    const [appliedIngredients, setAppliedIngredients] = useState<string[]>([]);
+    const [filteredMeals, setFilteredMeals] = useState(meals);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        setFilteredMeals(Array.isArray(meals) ? meals : []);
+    }, [meals]);
 
     const toggleDrawer = (newOpen: boolean) => () => {
         setOpen(newOpen);
@@ -73,24 +80,11 @@ export default function AppLayout({
         setAnchorElUser(null);
     }
 
-    const filteredMeals = meals
-        .filter(meal => {
-            if (appliedIngredients.length === 0) return true;
-
-            if (!meal.strTags) return false;
-
-            return appliedIngredients.every(ingredient =>
-                meal.strTags
-                    .toLowerCase()
-                    .includes(ingredient.toLowerCase())
-            );
-        })
+    const visibleMeals = filteredMeals
         .filter(meal => {
             if (searchQuery.trim() === "") return true;
 
-            return meal.strMeal
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase());
+            return meal.strMeal.toLowerCase().includes(searchQuery.toLowerCase());
         });
 
     return (
@@ -133,10 +127,20 @@ export default function AppLayout({
                                 />
                                 <Button
                                     variant="contained"
-                                    sx={{ margin: '10px' }}
-                                    onClick={() => {
-                                        setAppliedIngredients(selectedIngredients);
-                                        setOpen(false);
+                                    sx={{margin: '10px'}}
+                                    onClick={async () => {
+                                        let response;
+                                        let data;
+                                        if (selectedIngredients.length === 0) {
+                                            response = await fetch("/api/meals");
+                                        } else {
+                                            response = await fetch(
+                                                `/api/meals?ingredients=${selectedIngredients.join(",")}`
+                                            );
+                                        }
+                                        data = await response.json();
+                                        setFilteredMeals(Array.isArray(data) ? data : []);
+                                        toggleDrawer(false);
                                     }}
                                 >
                                     Filter
@@ -148,7 +152,7 @@ export default function AppLayout({
                         <Autocomplete
                             id="meal-search"
                             freeSolo
-                            options={Array.isArray(meals) ? meals.map(m => m.strMeal) : []}
+                            options={Array.isArray(filteredMeals) ? filteredMeals.map(m => m.strMeal) : []}
                             onInputChange={(_event, value) => setSearchInput(value)}
                             renderInput={(params) =>
                                 <TextField
@@ -215,36 +219,38 @@ export default function AppLayout({
                 </Toolbar>
             </AppBar>
             <Grid container spacing={3} marginLeft={10} marginTop={10}>
-                {filteredMeals.map((meal, id) => (
+                {visibleMeals.map((meal, id) => (
                     <Grid key={id}>
                         <Card sx={{width: 250, height: 300}} key={id} variant="outlined">
-                            <CardMedia
-                                component="img"
-                                sx={{maxHeight: 200}}
-                                image={meal.strMealThumb}
-                                alt={meal.strMeal}
-                            />
-                            <CardContent>
-                                <Typography component="h1" color="textPrimary" sx={{
-                                    fontSize: 25,
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden'
-                                }}>
-                                    {meal.strMeal}
-                                </Typography>
-                                <Typography component="h4" color="textSecondary">
-                                    {meal.strCategory}
-                                </Typography>
-                                <Typography component="p" variant="body2" color="textDisabled">
-                                    {meal.strTags}
-                                </Typography>
-                            </CardContent>
-                            <CardActions disableSpacing>
-                                <IconButton aria-label="add to favorites">
-                                    <FavoriteIcon/>
-                                </IconButton>
-                            </CardActions>
+                            <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
+                                <CardMedia
+                                    component="img"
+                                    sx={{maxHeight: 200}}
+                                    image={meal.strMealThumb}
+                                    alt={meal.strMeal}
+                                />
+                                <CardContent>
+                                    <Typography component="h1" color="textPrimary" sx={{
+                                        fontSize: 25,
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden'
+                                    }}>
+                                        {meal.strMeal}
+                                    </Typography>
+                                    <Typography component="h4" color="textSecondary">
+                                        {meal.strCategory}
+                                    </Typography>
+                                    <Typography component="p" variant="body2" color="textDisabled">
+                                        {meal.strTags}
+                                    </Typography>
+                                </CardContent>
+                                <CardActions disableSpacing>
+                                    <IconButton aria-label="add to favorites">
+                                        <FavoriteIcon/>
+                                    </IconButton>
+                                </CardActions>
+                            </CardActionArea>
                         </Card>
                     </Grid>
                 ))}
