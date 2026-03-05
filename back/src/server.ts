@@ -266,24 +266,18 @@ app.get("/api/meals/tags", async (req, res) => {
 
 app.get("/api/recipe/:id/ingredients", async (req, res) => {
     const recipeId = Number(req.params.id);
-    if (!Number.isFinite(recipeId)) return res.status(400).json({error: "invalid recipe id"});
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "invalid recipe id" });
 
     try {
-        const ingredients = await db.all(
-            `
-                SELECT i.name     as name,
-                       mi.measure as measure
-                FROM meal_ingredients mi
-                         JOIN ingredients i ON i.id = mi.idIngredient
-                WHERE mi.idMeal = ?
-                ORDER BY i.name ASC
-            `,
-            [recipeId],
-        );
+        const ingredients = await db.all("SELECT * FROM meal_ingredients WHERE idMeal = ?", [recipeId]);
+
+        if (!ingredients || ingredients.length === 0) {
+        return res.status(404).json({ error: "Ingredients not found" });
+        }
 
         return res.json(Array.isArray(ingredients) ? ingredients : []);
     } catch (err) {
-        return res.status(500).json({error: String(err)});
+        return res.status(500).json({ error: String(err) });
     }
 });
 
