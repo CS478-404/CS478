@@ -25,11 +25,22 @@ type ApiError = { error?: string; errors?: string[] };
 type LoginResponse = { username?: string } & ApiError;
 type MeResponse = { username: string; email: string } & ApiError;
 type Meal = {
+  id: string;
   strTags: string;
   strCategory: string;
   strMealThumb: string;
   strMeal: string;
 };
+type Ingredient = {
+  name: string
+};
+type Category = {
+  strCategory: string
+};
+type Area = {
+  strArea: string
+}
+type Tags = string
 
 function blurActiveElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -56,6 +67,10 @@ function AuthOnly() {
   >("error");
 
   let [meals, setMeals] = useState<Meal[]>([]);
+  let [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  let [categories, setCategories] = useState<Category[]>([]);
+  let [areas, setAreas] = useState<Area[]>([]);
+  let [tags, setTags] = useState<Tags[]>([]);
   let [settingsOpen, setSettingsOpen] = useState(false);
   let [meLoading, setMeLoading] = useState(false);
   let [me, setMe] = useState<{ username: string; email: string } | null>(null);
@@ -75,6 +90,58 @@ function AuthOnly() {
     fetchMeals();
   }, []);
 
+  useEffect(() => {
+    async function fetchIngredients() {
+      try {
+        const res = await axios.get("/api/ingredients");
+        setIngredients(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchIngredients();
+  }, []);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await axios.get("/api/meals/categories");
+        setCategories(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    async function fetchAreas() {
+      try {
+        const res = await axios.get("/api/meals/areas");
+        setAreas(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchAreas();
+  }, []);
+
+  useEffect(() => {
+    async function fetchTags() {
+      try {
+        const res = await axios.get("/api/meals/tags");
+        setTags(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchTags();
+  }, []);
+
   async function fetchMe() {
     if (!isLoggedIn) {
       setMe(null);
@@ -84,7 +151,7 @@ function AuthOnly() {
     setMeLoading(true);
     try {
       const res = await axios.get<MeResponse>("/api/me");
-      
+
       if (res.status === 200 && res.data?.username && res.data?.email) {
         setMe({ username: res.data.username, email: res.data.email });
       } else {
@@ -159,10 +226,10 @@ function AuthOnly() {
 
     if (authMode === "login") {
       let nextUsername = res.data?.username ?? formData.identifier;
-      
+
       if (nextUsername) setCookie("username", nextUsername, { path: "/" });
     } else {
-      
+
       if (formData.username) setCookie("username", formData.username, { path: "/" });
     }
 
@@ -233,6 +300,10 @@ function AuthOnly() {
         username={cookies.username}
         onOpenUserSettings={() => setSettingsOpen(true)}
         meals={meals}
+        ingredients={ingredients}
+        categories={categories}
+        areas={areas}
+        tags={tags}
         onLoginClick={() => openAuth("login")}
         onRegisterClick={() => openAuth("register")}
         onLogout={logout}
