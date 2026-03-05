@@ -22,6 +22,7 @@ axios.defaults.validateStatus = () => true;
 type ApiError = { error?: string; errors?: string[] };
 type LoginResponse = { username?: string } & ApiError;
 type Meal = {
+  id: string;
   strTags: string;
   strCategory: string;
   strMealThumb: string;
@@ -30,6 +31,13 @@ type Meal = {
 type Ingredient = {
   name: string
 };
+type Category = {
+  strCategory: string
+};
+type Area = {
+  strArea: string
+}
+type Tags = string
 
 function blurActiveElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -57,6 +65,9 @@ function AuthOnly() {
 
   let [meals, setMeals] = useState<Meal[]>([]);
   let [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  let [categories, setCategories] = useState<Category[]>([]);
+  let [areas, setAreas] = useState<Area[]>([]);
+  let [tags, setTags] = useState<Tags[]>([]);
 
   useEffect(() => {
     async function fetchMeals() {
@@ -82,6 +93,45 @@ function AuthOnly() {
     }
 
     fetchIngredients();
+  }, []);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await axios.get("/api/meals/categories");
+        setCategories(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    async function fetchAreas() {
+      try {
+        const res = await axios.get("/api/meals/areas");
+        setAreas(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchAreas();
+  }, []);
+
+  useEffect(() => {
+    async function fetchTags() {
+      try {
+        const res = await axios.get("/api/meals/tags");
+        setTags(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    fetchTags();
   }, []);
 
   function closeNotice() {
@@ -145,7 +195,7 @@ function AuthOnly() {
       let nextUsername = res.data?.username ?? formData.identifier;
       if (nextUsername) setCookie("username", nextUsername, { path: "/" });
     } else {
-      
+
       if (formData.username) setCookie("username", formData.username, { path: "/" });
     }
 
@@ -183,6 +233,9 @@ function AuthOnly() {
         username={cookies.username}
         meals={meals}
         ingredients={ingredients}
+        categories={categories}
+        areas={areas}
+        tags={tags}
         onLoginClick={() => openAuth("login")}
         onRegisterClick={() => openAuth("register")}
         onLogout={logout}
