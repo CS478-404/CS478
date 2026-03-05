@@ -174,28 +174,55 @@ get request handlers
 */
 
 app.get("/api/meals", async (req, res) => {
-    const params = req.query.ingredients as string | undefined;
+    const ingredientsParam = req.query.ingredients as string | undefined;
+    const category = req.query.category as string | undefined;
+    const area = req.query.area as string | undefined;
+    const tags = req.query.tags as string | undefined;
 
     try {
-        if (!params) {
-            const meals = await db.all(`SELECT id, strTags, strCategory, strMealThumb, strMeal
-                                        FROM meals`);
-            return res.json(meals ?? []);
+        const whereClauses: string[] = [];
+        const params: any[] = [];
+
+        if (category) {
+            whereClauses.push("m.strCategory = ?");
+            params.push(category);
         }
 
+        if (area) {
+            whereClauses.push("m.strArea = ?");
+            params.push(area);
+        }
 
-        const ingredients = params.split(",").map(i => i.trim());
-        const placeholders = ingredients.map(() => "?").join(",");
-        const meals = await db.all(
-            `SELECT m.id, m.strTags, m.strCategory, m.strMealThumb, m.strMeal
-             FROM meals m
-                      JOIN meal_ingredients mi ON m.id = mi.idMeal
-                      JOIN ingredients i ON i.id = mi.idIngredient
-             WHERE i.name IN (${placeholders})
-             GROUP BY m.id
-             HAVING COUNT(DISTINCT i.name) = ?`,
-            [...ingredients, ingredients.length]
-        );
+        if (tags) {
+            const tagList = tags.split(",").map(t => t.trim());
+            whereClauses.push(`(${tagList.map(() => "m.strTags LIKE ?").join(" OR ")})`);
+            tagList.forEach(t => params.push(`%${t}%`));
+        }
+
+        let query = `SELECT DISTINCT m.id, m.strTags, m.strCategory, m.strMealThumb, m.strMeal
+                     FROM meals m`;
+
+        if (ingredientsParam) {
+            const ingredients = ingredientsParam.split(",").map(i => i.trim());
+            const placeholders = ingredients.map(() => "?").join(",");
+            query += `
+                JOIN meal_ingredients mi ON m.id = mi.idMeal
+                JOIN ingredients i ON i.id = mi.idIngredient`;
+            whereClauses.push(`i.name IN (${placeholders})`);
+            params.push(...ingredients);
+        }
+
+        if (whereClauses.length > 0) {
+            query += " WHERE " + whereClauses.join(" AND ");
+        }
+
+        if (ingredientsParam) {
+            const ingredients = ingredientsParam.split(",").map(i => i.trim());
+            query += ` GROUP BY m.id
+                       HAVING COUNT(DISTINCT i.name) = ${ingredients.length}`;
+        }
+
+        const meals = await db.all(query, params);
         return res.json(meals ?? []);
     } catch (err) {
         return res.status(500).json({error: String(err)});
@@ -206,6 +233,35 @@ app.get("/api/ingredients", async (req, res) => {
     const ingredients = await db.all(`SELECT *
                                       FROM ingredients`);
     res.json(ingredients ?? []);
+});
+
+app.get("/api/meals/categories", async (req, res) => {
+    const categories = await db.all(`SELECT DISTINCT strCategory
+                                     FROM meals`);
+    res.json(categories ?? []);
+});
+
+app.get("/api/meals/areas", async (req, res) => {
+    const areas = await db.all(`SELECT DISTINCT strArea FROM meals`);
+    res.json(areas ?? []);
+});
+
+app.get("/api/meals/tags", async (req, res) => {
+    const rows = await db.all(`SELECT strTags FROM meals`);
+
+    const tagSet = new Set<string>();
+
+    rows.forEach((row: { strTags: string | null }) => {
+        if (!row.strTags) return;
+
+        row.strTags
+            .split(",")
+            .map(tag => tag.trim())
+            .filter(tag => tag.length > 0)
+            .forEach(tag => tagSet.add(tag));
+    });
+
+    res.json(Array.from(tagSet));
 });
 
 app.get("/api/recipe/:id/ingredients", async (req, res) => {
