@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { useCookies } from "react-cookie";
-import {
-  Alert,
-  Button,
-  Box,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Snackbar,
-  Stack,
-  TextField,
-} from "@mui/material";
+import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
+import Snackbar from "@mui/material/Snackbar";
+import Stack from "@mui/material/Stack";
+import TextField from "@mui/material/TextField";
 import AppLayout from "./AppLayout.tsx";
 
 axios.defaults.baseURL = "http://localhost:3000";
@@ -32,15 +30,15 @@ type Meal = {
   strMeal: string;
 };
 type Ingredient = {
-  name: string
+  name: string;
 };
 type Category = {
-  strCategory: string
+  strCategory: string;
 };
 type Area = {
-  strArea: string
-}
-type Tags = string
+  strArea: string;
+};
+type Tags = string;
 
 function blurActiveElement() {
   if (document.activeElement instanceof HTMLElement) {
@@ -229,7 +227,6 @@ function AuthOnly() {
 
       if (nextUsername) setCookie("username", nextUsername, { path: "/" });
     } else {
-
       if (formData.username) setCookie("username", formData.username, { path: "/" });
     }
 
