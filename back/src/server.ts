@@ -9,11 +9,15 @@ import type {CookieOptions} from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
+import path from "node:path";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 sqlite3.verbose(); // enable better error messages
 
 const db: Database = await open({
-    filename: process.env.DATABASE_FILE ?? "../database.db",
+    filename: process.env.DATABASE_FILE ?? path.join(__dirname, "../database.db"),
     driver: sqlite3.Database,
 });
 
@@ -276,6 +280,41 @@ app.get("/api/recipe/:id/ingredients", async (req, res) => {
         }
 
         return res.json(Array.isArray(ingredients) ? ingredients : []);
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+});
+
+app.get("/api/recipe/:id/rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const ratings = await db.all("SELECT rating FROM meal_ratings WHERE meal_id = ?", [recipeId]);
+        if (!ratings) {
+            return res.status(404).json({ error: "Ratings not found" });
+        }
+        const averageRating = ratings.length > 0
+            ? ratings.reduce((sum, { rating }) => sum + rating, 0) / ratings.length
+            : null;
+        return res.json({ rating: averageRating, amount: ratings.length });
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+});
+
+app.get("/api/recipe/:id/user-rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    const currentUser = await getAuthUsername(req);
+
+    try {
+        const ratings = await db.get("SELECT rating FROM meal_ratings WHERE meal_id = ? AND username = ?", [recipeId, currentUser]);
+        if (!ratings) {
+            return res.json({ rating: null });
+        }
+        return res.json({ rating: ratings.rating });
     } catch (err) {
         return res.status(500).json({ error: String(err) });
     }
@@ -640,6 +679,39 @@ app.post("/api/comments/:commentId/vote", async (req, res) => {
         const error = err as Object;
         return res.status(500).json({error: error.toString()});
     }
+});
+
+app.post("/api/recipe/:id/rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required to submit rating" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });    
+    }
+
+    const rating = Number(req.body.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Invalid rating value" });
+    }
+
+    try {
+        await db.run(
+            `INSERT INTO meal_ratings(meal_id, username, rating)
+            VALUES (?, ?, ?)
+            ON CONFLICT(meal_id, username) DO UPDATE SET rating = excluded.rating
+            `,
+            [recipeId, username, rating],
+        );
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+    return res.json({ ok: true });
 });
 
 app.post("/api/recipes", async (req, res) => {
