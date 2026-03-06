@@ -52,6 +52,14 @@ h2 {
   gap: 2rem;
 }
 
+.alert-container {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 9999;
+  min-width: 300px;
+}
+
 .details {
   display: flex;
   gap: 4rem;
@@ -85,6 +93,14 @@ h2 {
 
 .instructions {
   text-align: left;
+}
+
+.rating-section {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-left: 0;
+  width: 100%; 
 }
 
 .step {
