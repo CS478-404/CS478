@@ -37,7 +37,6 @@ async function ensureSchema(db: Database) {
       strImageSource TEXT,
       strCreativeCommonsConfirmed TEXT,
       dateModified TEXT,
-      rating INTEGER,
       createdBy TEXT
     );
   `);
