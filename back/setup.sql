@@ -37,11 +37,10 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_favorites (
-    user_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
     meal_id INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, meal_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
+    PRIMARY KEY (username, meal_id),
+    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE,
     FOREIGN KEY (meal_id) REFERENCES meals(id)
 );
 

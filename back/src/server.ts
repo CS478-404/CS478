@@ -780,6 +780,26 @@ app.post("/api/recipes", async (req, res) => {
   }
 });
 
+app.post("/api/favorites", async (req, res) => {
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required" }); 
+    
+    const recipeId = Number(req.body.data.recipeId);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+        const user = await db.get("SELECT username FROM users WHERE username = ?", [username]);
+        if (!user) return res.status(404).json({ error: "User not found" });
+        await db.run("INSERT INTO user_favorites(username, meal_id) VALUES(?, ?)", [username, recipeId]);
+        return res.json({ ok: true });
+    } catch (error) {
+        return res.status(500).json({ error: String(error) });
+    }
+
+});
+
 /*
 patch request handlers
 */
@@ -878,6 +898,25 @@ app.delete("/api/comments/:commentId", async (req, res) => {
     const error = err as Object;
     return res.status(500).json({ error: error.toString() });
   }
+});
+
+app.delete("/api/favorites", async (req, res) => {
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required" });
+
+    const recipeId = Number(req.body.data.recipeId);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+        const user = await db.get("SELECT username FROM users WHERE username = ?", [username]);
+        if (!user) return res.status(404).json({ error: "User not found" });
+        await db.run("DELETE FROM user_favorites WHERE username = ? AND meal_id = ?", [username, recipeId]);
+        return res.json({ ok: true });
+    } catch (error) {
+        return res.status(500).json({ error: String(error) });
+    }
 });
 
 /*

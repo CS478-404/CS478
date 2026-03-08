@@ -121,9 +121,32 @@ function Recipe() {
     
     let instructions = parseInstructions(recipe?.strInstructions || '');
     let tags = recipe?.strTags ? recipe.strTags.split(',').map(tag => tag.trim()) : [];
+
+    let addToFavorites = async (recipeId: number) => {
+        try {
+            await axios.post(`/api/favorites`, { data: { recipeId } });
+        } catch (error) {
+            console.error("Error adding to favorites:", error);
+        }
+    };
+
+    let removeFromFavorites = async (recipeId: number) => {
+        try {
+            await axios.delete(`/api/favorites`, { data: { recipeId } });
+        } catch (error) {
+            console.error("Error removing from favorites:", error);
+        }
+    }
+
     let toggleFavorite = () => {
         setIsFavorite(!isFavorite);
+        if (!isFavorite) {
+            addToFavorites(recipe!.id);
+        } else {
+            removeFromFavorites(recipe!.id);
+        }
     };
+
 
     return (
         <>
