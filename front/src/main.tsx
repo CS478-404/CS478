@@ -6,6 +6,7 @@ import './index.css'
 import App from './App.tsx'
 import Recipe from './Recipe.tsx';
 import CreateRecipe from './CreateRecipe.tsx';
+import Favorites from './Favorites.tsx';
 
 let router = createBrowserRouter([
   {
@@ -19,6 +20,10 @@ let router = createBrowserRouter([
   {
     path: "/create",
     element: <CreateRecipe />
+  },
+  {
+    path: "/favorites",
+    element: <Favorites />
   }
 ]);
 
