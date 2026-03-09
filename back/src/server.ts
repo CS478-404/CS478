@@ -414,6 +414,43 @@ app.get("/api/me", async (req, res) => {
   }
 });
 
+app.get("/api/favorites", async (req, res) => {
+  const username = await getAuthUsername(req);
+
+  if (!username) return res.status(401).json({ error: "Login required" });
+
+  try {
+    const favorites = await db.all(
+      "SELECT m.* FROM meals m INNER JOIN user_favorites uf ON m.id = uf.meal_id WHERE uf.username = ?",
+      [username]
+    );
+
+    return res.json(favorites);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
+app.get("/api/favorites/:id", async (req, res) => {
+  const username = await getAuthUsername(req);
+  const mealId = req.params.id;
+
+  if (!username) return res.status(401).json({ error: "Login required" });
+
+  try {
+    const isFavorite = await db.get(
+      "SELECT EXISTS(SELECT 1 FROM user_favorites WHERE username = ? AND meal_id = ?) as isFavorite",
+      [username, mealId]
+    );
+
+    return res.json({ isFavorite: isFavorite.isFavorite === 1 });
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
 /*
 post request handlers
 */
