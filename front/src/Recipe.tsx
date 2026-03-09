@@ -2,7 +2,7 @@ import {useNavigate, useParams} from 'react-router-dom';
 import axios from 'axios';
 import { useState, useEffect } from 'react';
 import {Alert, Breadcrumbs, Container, IconButton, Link, Typography} from '@mui/material';
-import { Star, StarBorder } from '@mui/icons-material';
+import { Star, StarBorder, StarHalf } from '@mui/icons-material';
 import './App.css';
 import CommentSection from './CommentSection';
 
@@ -26,7 +26,36 @@ function Recipe() {
     let [error, setError] = useState<string | null>(null);
     let [loading, setLoading] = useState(true);
     let [isFavorite, setIsFavorite] = useState(false);
+    let [rating, setRating] = useState<number | null>(null);
+    let [ratingCount, setRatingCount] = useState<number>(0);
+    let [userRating, setUserRating] = useState<number | null>(null);
     let navigate = useNavigate();
+
+    const submitRating = async (value: number) => {
+        setError(null);
+        try {
+            const response = await axios.post(`/api/recipe/${id}/rating`, { rating: value });
+            if (!response.data.ok) {
+                if (response.data.error) {
+                    setError(response.data.error);
+                } else {
+                    setError("Failed to submit rating");
+                }
+                return;
+            }
+            setUserRating(value);
+            
+            let ratingResponse = (await axios.get(`/api/recipe/${id}/rating`)).data;
+            setRating(ratingResponse.rating);
+            setRatingCount(ratingResponse.amount);
+        } catch (err) {
+            if (axios.isAxiosError(err)) {
+                setError(err.response?.data?.error || "Failed to submit rating");
+            } else {
+                setError("Failed to submit rating");
+            }
+        }
+    };
 
     useEffect(() => {
         let fetchRecipe = async () => {
@@ -47,8 +76,18 @@ function Recipe() {
                         measure: ingredient.measure
                     });
                 }
-                
                 setRecipe(recipeResponse);
+
+                let ratingResponse = (await axios.get(`/api/recipe/${id}/rating`)).data;
+                setRating(ratingResponse.rating);
+                setRatingCount(ratingResponse.amount);
+
+                let userRatingResponse = (await axios.get(`/api/recipe/${id}/user-rating`)).data;
+                setUserRating(userRatingResponse.rating);
+
+                axios.get(`/api/favorites/${id}`).then(res => {
+                    setIsFavorite(res.data.isFavorite);
+                });
             } catch (err) {
                 console.error(err);
                 setError("Failed to fetch recipe");
@@ -86,17 +125,42 @@ function Recipe() {
     
     let instructions = parseInstructions(recipe?.strInstructions || '');
     let tags = recipe?.strTags ? recipe.strTags.split(',').map(tag => tag.trim()) : [];
+
+    let addToFavorites = async (recipeId: number) => {
+        try {
+            await axios.post(`/api/favorites`, { data: { recipeId } });
+        } catch (error) {
+            console.error("Error adding to favorites:", error);
+        }
+    };
+
+    let removeFromFavorites = async (recipeId: number) => {
+        try {
+            await axios.delete(`/api/favorites`, { data: { recipeId } });
+        } catch (error) {
+            console.error("Error removing from favorites:", error);
+        }
+    }
+
     let toggleFavorite = () => {
         setIsFavorite(!isFavorite);
+        if (!isFavorite) {
+            addToFavorites(recipe!.id);
+        } else {
+            removeFromFavorites(recipe!.id);
+        }
     };
+
 
     return (
         <>
             <div className="recipe-page">
                 <div className="errorHandler">
-                    {error && <Container maxWidth="md" sx={{ py: 1 }}>
-                        <Alert severity="error">{error}</Alert>
-                    </Container>}
+                    {error && (
+                        <div className="alert-container">
+                            <Alert severity="error">{error}</Alert>
+                        </div>
+                    )}
                     {!loading && !recipe && !error && <Container maxWidth="md" sx={{ py: 1 }}>
                         <Alert severity="info">Recipe not found.</Alert>
                     </Container>}
@@ -139,6 +203,40 @@ function Recipe() {
                                         )}
                                     </IconButton>
                                 </div>
+                                <div className="recipe-rating" style={{
+                                    marginBottom: '6px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    minHeight: '32px',
+                                    justifyContent: 'flex-start'
+                                }}>
+                                    {typeof rating === "number" && !isNaN(rating) && ratingCount && ratingCount > 0 ? (
+                                        <>
+                                            {(() => {
+                                                const rounded = Math.round(rating * 2) / 2;
+                                                return [1,2,3,4,5].map((star) => {
+                                                    if (star <= Math.floor(rounded)) {
+                                                        return <Star key={star} sx={{ color: '#ffd700', fontSize: '1.5rem' }} />;
+                                                    } else if (star === Math.ceil(rounded) && rounded % 1 === 0.5) {
+                                                        return <StarHalf key={star} sx={{ color: '#ffd700', fontSize: '1.5rem' }} />;
+                                                    } else {
+                                                        return <StarBorder key={star} sx={{ color: '#646cff', fontSize: '1.5rem' }} />;
+                                                    }
+                                                });
+                                            })()}
+                                            <span style={{ marginLeft: 8, fontWeight: 500 }}>
+                                                {rating.toFixed(1)} ({ratingCount})
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {[1,2,3,4,5].map((star) =>
+                                                <StarBorder key={star} sx={{ color: '#bbb', fontSize: '1.5rem' }} />
+                                            )}
+                                            <span style={{ marginLeft: 8, color: '#888', fontWeight: 500 }}>(unrated)</span>
+                                        </>
+                                    )}
+                                </div>
                                 <p><strong>Category:</strong> {recipe.strCategory}</p>
                                 <p><strong>Area:</strong> {recipe.strArea}</p>
                                 {tags.length > 0 && (
@@ -168,6 +266,21 @@ function Recipe() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                        <div className="rating-section">
+                            <span style={{ marginRight: 8 }}>Your Rating:</span>
+                            {[1,2,3,4,5].map((star) =>
+                                <IconButton
+                                    key={star}
+                                    onClick={() => submitRating(star)}
+                                    disabled={loading}
+                                    sx={{ padding: 0 }}
+                                >
+                                    {userRating && star <= userRating
+                                        ? <Star sx={{ color: '#ffd700', fontSize: '1.5rem' }} />
+                                        : <StarBorder sx={{ color: '#646cff', fontSize: '1.5rem' }} />}
+                                </IconButton>
+                            )}
                         </div>
                         <div className="comments">
                             <CommentSection recipeId={recipe.id} />

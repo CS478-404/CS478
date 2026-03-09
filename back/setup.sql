@@ -11,7 +11,6 @@ CREATE TABLE meals (
     strImageSource TEXT,
     strCreativeCommonsConfirmed TEXT,
     dateModified TEXT,
-    rating INTEGER,
     createdBy TEXT
 );
 
@@ -38,11 +37,10 @@ CREATE TABLE users (
 );
 
 CREATE TABLE user_favorites (
-    user_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
     meal_id INTEGER NOT NULL,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (user_id, meal_id),
-    FOREIGN KEY (user_id) REFERENCES users(id),
+    PRIMARY KEY (username, meal_id),
+    FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE,
     FOREIGN KEY (meal_id) REFERENCES meals(id)
 );
 
@@ -76,6 +74,15 @@ CREATE TABLE comment_votes (
     created_at TEXT NOT NULL,
     PRIMARY KEY (comment_id, username),
     FOREIGN KEY(comment_id) REFERENCES comments(id) ON DELETE CASCADE,
+    FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE
+);
+
+CREATE TABLE meal_ratings (
+    meal_id INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+    PRIMARY KEY (meal_id, username),
+    FOREIGN KEY(meal_id) REFERENCES meals(id) ON DELETE CASCADE,
     FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE
 );
 

@@ -175,6 +175,12 @@ export default function AppLayout({
                   <MenuItem>
                     <Button variant="text">My Recipes</Button>
                   </MenuItem>
+                  <MenuItem onClick={() => {
+                    handleCloseUserMenu();
+                    navigate("/favorites");
+                  }}>
+                    <Button variant="text">My Favorites</Button>
+                  </MenuItem>
                   <MenuItem onClick={handleCloseUserMenu}>
                     <Button variant="outlined" color="warning" onClick={onLogout}>
                       Log out

@@ -9,11 +9,15 @@ import type {CookieOptions} from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
+import path from "node:path";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 sqlite3.verbose(); // enable better error messages
 
 const db: Database = await open({
-    filename: process.env.DATABASE_FILE ?? "../database.db",
+    filename: process.env.DATABASE_FILE ?? path.join(__dirname, "../database.db"),
     driver: sqlite3.Database,
 });
 
@@ -281,6 +285,41 @@ app.get("/api/recipe/:id/ingredients", async (req, res) => {
     }
 });
 
+app.get("/api/recipe/:id/rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const ratings = await db.all("SELECT rating FROM meal_ratings WHERE meal_id = ?", [recipeId]);
+        if (!ratings) {
+            return res.status(404).json({ error: "Ratings not found" });
+        }
+        const averageRating = ratings.length > 0
+            ? ratings.reduce((sum, { rating }) => sum + rating, 0) / ratings.length
+            : null;
+        return res.json({ rating: averageRating, amount: ratings.length });
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+});
+
+app.get("/api/recipe/:id/user-rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    const currentUser = await getAuthUsername(req);
+
+    try {
+        const ratings = await db.get("SELECT rating FROM meal_ratings WHERE meal_id = ? AND username = ?", [recipeId, currentUser]);
+        if (!ratings) {
+            return res.json({ rating: null });
+        }
+        return res.json({ rating: ratings.rating });
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+});
+
 app.get("/api/recipe/:id", async (req, res) => {
     let recipeId = req.params.id;
     try {
@@ -369,6 +408,43 @@ app.get("/api/me", async (req, res) => {
     if (!user) return res.status(404).json({ error: "user not found" });
 
     return res.json(user);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
+app.get("/api/favorites", async (req, res) => {
+  const username = await getAuthUsername(req);
+
+  if (!username) return res.status(401).json({ error: "Login required" });
+
+  try {
+    const favorites = await db.all(
+      "SELECT m.* FROM meals m INNER JOIN user_favorites uf ON m.id = uf.meal_id WHERE uf.username = ?",
+      [username]
+    );
+
+    return res.json(favorites);
+  } catch (err) {
+    const error = err as Object;
+    return res.status(500).json({ error: error.toString() });
+  }
+});
+
+app.get("/api/favorites/:id", async (req, res) => {
+  const username = await getAuthUsername(req);
+  const mealId = req.params.id;
+
+  if (!username) return res.status(401).json({ error: "Login required" });
+
+  try {
+    const isFavorite = await db.get(
+      "SELECT EXISTS(SELECT 1 FROM user_favorites WHERE username = ? AND meal_id = ?) as isFavorite",
+      [username, mealId]
+    );
+
+    return res.json({ isFavorite: isFavorite.isFavorite === 1 });
   } catch (err) {
     const error = err as Object;
     return res.status(500).json({ error: error.toString() });
@@ -642,6 +718,39 @@ app.post("/api/comments/:commentId/vote", async (req, res) => {
     }
 });
 
+app.post("/api/recipe/:id/rating", async (req, res) => {
+    const recipeId = Number(req.params.id);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required to submit rating" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });    
+    }
+
+    const rating = Number(req.body.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ error: "Invalid rating value" });
+    }
+
+    try {
+        await db.run(
+            `INSERT INTO meal_ratings(meal_id, username, rating)
+            VALUES (?, ?, ?)
+            ON CONFLICT(meal_id, username) DO UPDATE SET rating = excluded.rating
+            `,
+            [recipeId, username, rating],
+        );
+    } catch (err) {
+        return res.status(500).json({ error: String(err) });
+    }
+    return res.json({ ok: true });
+});
+
 app.post("/api/recipes", async (req, res) => {
   const username = await getAuthUsername(req);
   if (!username) return res.status(401).json({ error: "Login required" });
@@ -706,6 +815,26 @@ app.post("/api/recipes", async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: String(err) });
   }
+});
+
+app.post("/api/favorites", async (req, res) => {
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required" }); 
+    
+    const recipeId = Number(req.body.data.recipeId);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+        const user = await db.get("SELECT username FROM users WHERE username = ?", [username]);
+        if (!user) return res.status(404).json({ error: "User not found" });
+        await db.run("INSERT INTO user_favorites(username, meal_id) VALUES(?, ?)", [username, recipeId]);
+        return res.json({ ok: true });
+    } catch (error) {
+        return res.status(500).json({ error: String(error) });
+    }
+
 });
 
 /*
@@ -806,6 +935,25 @@ app.delete("/api/comments/:commentId", async (req, res) => {
     const error = err as Object;
     return res.status(500).json({ error: error.toString() });
   }
+});
+
+app.delete("/api/favorites", async (req, res) => {
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required" });
+
+    const recipeId = Number(req.body.data.recipeId);
+    if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
+
+    try {
+        const meal = await db.get<{ id: number }>("SELECT id FROM meals WHERE id = ?", [recipeId]);
+        if (!meal) return res.status(404).json({ error: "Recipe not found" });
+        const user = await db.get("SELECT username FROM users WHERE username = ?", [username]);
+        if (!user) return res.status(404).json({ error: "User not found" });
+        await db.run("DELETE FROM user_favorites WHERE username = ? AND meal_id = ?", [username, recipeId]);
+        return res.json({ ok: true });
+    } catch (error) {
+        return res.status(500).json({ error: String(error) });
+    }
 });
 
 /*

@@ -1,10 +1,10 @@
 {
     "scripts": {
-        "setup": "cd back && rm -f database.db && sqlite3 database.db < setup.sql",
+        "setup": "rm -f back/database.db && sqlite3 back/database.db < back/setup.sql",
         "data": "cd back && npm run data",
         "dev": "npm-run-all -p dev:client dev:server",
         "dev:client": "cd front && npm run dev",
-        "dev:server": "cd back/src/ && nodemon server.ts",
+        "dev:server": "cd back && nodemon --exec ts-node src/server.ts",
         "install:all": "npm install && cd front && npm install && cd ../back && npm install",
         "build": "cd front && npm run build"
     },
