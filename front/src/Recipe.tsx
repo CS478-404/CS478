@@ -84,6 +84,10 @@ function Recipe() {
 
                 let userRatingResponse = (await axios.get(`/api/recipe/${id}/user-rating`)).data;
                 setUserRating(userRatingResponse.rating);
+
+                axios.get(`/api/favorites/${id}`).then(res => {
+                    setIsFavorite(res.data.isFavorite);
+                });
             } catch (err) {
                 console.error(err);
                 setError("Failed to fetch recipe");
