@@ -21,6 +21,7 @@ import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import { useMemo, useState } from "react";
 import { Form, useNavigate } from "react-router-dom";
+import Pagination from "@mui/material/Pagination";
 
 type Props = {
   isLoggedIn: boolean;
@@ -72,7 +73,7 @@ export default function AppLayout({
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [renderLimit, setRenderLimit] = useState<number>(24);
+  const [page, setPage] = useState<number>(1);
   const [filterResults, setFilterResults] = useState<
     {
       id: string;
@@ -84,6 +85,7 @@ export default function AppLayout({
   >(null);
 
   const navigate = useNavigate();
+  const itemsPerPage = 24;
 
   const baseMeals = useMemo(() => {
     const src = filterResults ?? (Array.isArray(meals) ? meals : []);
@@ -97,8 +99,10 @@ export default function AppLayout({
   }, [baseMeals, searchQuery]);
 
   const displayedMeals = useMemo(() => {
-    return visibleMeals.slice(0, renderLimit);
-  }, [visibleMeals, renderLimit]);
+      const start = (page - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      return visibleMeals.slice(start, end);
+  }, [visibleMeals, page]);
 
   const searchOptions = useMemo(() => {
     return baseMeals.slice(0, 100).map((m) => m.strMeal);
@@ -130,7 +134,6 @@ export default function AppLayout({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       setSearchQuery(searchInput);
-                      setRenderLimit(24);
                     }
                   }}
                 />
@@ -347,7 +350,6 @@ export default function AppLayout({
                 }
                 data = await response.json();
                 setFilterResults(Array.isArray(data) ? data : []);
-                setRenderLimit(24);
               }}
             >
               Filter
@@ -364,7 +366,6 @@ export default function AppLayout({
                 setSelectedTags([]);
                 setSearchInput("");
                 setSearchQuery("");
-                setRenderLimit(24);
               }}
             >
               Clear
@@ -416,14 +417,22 @@ export default function AppLayout({
             </Grid>
           ))}
         </Grid>
-
-        {visibleMeals.length > renderLimit ? (
-          <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
-            <Button variant="outlined" onClick={() => setRenderLimit((n) => n + 24)}>
-              Load more
-            </Button>
-          </Box>
-        ) : null}
+          <Pagination
+              page={page}
+              count={Math.ceil(visibleMeals.length / itemsPerPage)}
+              onChange={(_, value) => setPage(value)}
+              variant="outlined"
+              sx={{
+                  display: "flex", justifyContent: "center", marginTop: 3, "& .MuiPaginationItem-root": {
+                      color: "white",
+                      borderColor: "white"
+                  }, "& .Mui-selected": {
+                      backgroundColor: "#1976d2",
+                      color: "white",
+                      borderColor: "#1976d2"
+                  }
+              }}
+          />
       </Box>
     </Box>
   );
