@@ -90,6 +90,7 @@ export default function AppLayout({
   const location = useLocation();
   const itemsPerPage = 24;
   const isHomePage = location.pathname === "/";
+  const showFilters = isHomePage;
 
   const baseMeals = useMemo(() => {
     const src = filterResults ?? (Array.isArray(meals) ? meals : []);
@@ -223,10 +224,12 @@ export default function AppLayout({
                   <MenuItem>
                     <Button variant="text">My Recipes</Button>
                   </MenuItem>
-                  <MenuItem onClick={() => {
-                    handleCloseUserMenu();
-                    navigate("/favorites");
-                  }}>
+                  <MenuItem
+                    onClick={() => {
+                      handleCloseUserMenu();
+                      navigate("/favorites");
+                    }}
+                  >
                     <Button variant="text">My Favorites</Button>
                   </MenuItem>
                   <MenuItem onClick={handleCloseUserMenu}>
@@ -250,150 +253,162 @@ export default function AppLayout({
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant="permanent"
-        anchor="left"
+      {showFilters && (
+        <Drawer
+          variant="permanent"
+          anchor="left"
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="h6" textAlign="left" marginLeft="10px">
+              Filter by:
+            </Typography>
+
+            <Box component="form">
+              <Autocomplete
+                multiple
+                options={ingredients}
+                disableCloseOnSelect
+                getOptionLabel={(ingredient) => ingredient.name}
+                value={ingredients.filter((ingredient) =>
+                  selectedIngredients.includes(ingredient.name),
+                )}
+                onChange={(_, newValue) => {
+                  setSelectedIngredients(newValue.map((ingredient) => ingredient.name));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.name}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Ingredients" placeholder="Ingredients" />
+                )}
+              />
+
+              <Autocomplete
+                multiple
+                options={categories}
+                disableCloseOnSelect
+                getOptionLabel={(category) => category.strCategory}
+                value={categories.filter((category) =>
+                  selectedCategories.includes(category.strCategory),
+                )}
+                onChange={(_, newValue) => {
+                  setSelectedCategories(newValue.map((category) => category.strCategory));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.strCategory}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Category" placeholder="Category" />
+                )}
+              />
+
+              <Autocomplete
+                multiple
+                options={areas}
+                disableCloseOnSelect
+                getOptionLabel={(area) => area.strArea}
+                value={areas.filter((area) => selectedAreas.includes(area.strArea))}
+                onChange={(_, newValue) => {
+                  setSelectedAreas(newValue.map((area) => area.strArea));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.strArea}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => <TextField {...params} label="Area" placeholder="Area" />}
+              />
+
+              <Autocomplete
+                multiple
+                options={tags}
+                disableCloseOnSelect
+                getOptionLabel={(tag) => tag}
+                value={selectedTags}
+                onChange={(_, newValue) => {
+                  setSelectedTags(newValue);
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => <TextField {...params} label="Tags" placeholder="Tags" />}
+              />
+
+              <Button variant="contained" sx={{ margin: "10px" }} onClick={runFilters}>
+                Filter
+              </Button>
+
+              <Button variant="outlined" sx={{ margin: "10px" }} onClick={clearFilters}>
+                Clear
+              </Button>
+            </Box>
+          </Box>
+        </Drawer>
+      )}
+
+      <Box
+        component="main"
         sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
+          flexGrow: 1,
+          width: showFilters ? `calc(100% - ${drawerWidth}px)` : "100%",
         }}
       >
-        <Toolbar />
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="h6" textAlign="left" marginLeft="10px">
-            Filter by:
-          </Typography>
-
-          <Box component="form">
-            <Autocomplete
-              multiple
-              options={ingredients}
-              disableCloseOnSelect
-              getOptionLabel={(ingredient) => ingredient.name}
-              value={ingredients.filter((ingredient) => selectedIngredients.includes(ingredient.name))}
-              onChange={(_, newValue) => {
-                setSelectedIngredients(newValue.map((ingredient) => ingredient.name));
-                setPage(1);
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.name}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => (
-                <TextField {...params} label="Ingredients" placeholder="Ingredients" />
-              )}
-            />
-
-            <Autocomplete
-              multiple
-              options={categories}
-              disableCloseOnSelect
-              getOptionLabel={(category) => category.strCategory}
-              value={categories.filter((category) => selectedCategories.includes(category.strCategory))}
-              onChange={(_, newValue) => {
-                setSelectedCategories(newValue.map((category) => category.strCategory));
-                setPage(1);
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.strCategory}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => (
-                <TextField {...params} label="Category" placeholder="Category" />
-              )}
-            />
-
-            <Autocomplete
-              multiple
-              options={areas}
-              disableCloseOnSelect
-              getOptionLabel={(area) => area.strArea}
-              value={areas.filter((area) => selectedAreas.includes(area.strArea))}
-              onChange={(_, newValue) => {
-                setSelectedAreas(newValue.map((area) => area.strArea));
-                setPage(1);
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.strArea}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Area" placeholder="Area" />}
-            />
-
-            <Autocomplete
-              multiple
-              options={tags}
-              disableCloseOnSelect
-              getOptionLabel={(tag) => tag}
-              value={selectedTags}
-              onChange={(_, newValue) => {
-                setSelectedTags(newValue);
-                setPage(1);
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Tags" placeholder="Tags" />}
-            />
-
-            <Button variant="contained" sx={{ margin: "10px" }} onClick={runFilters}>
-              Filter
-            </Button>
-
-            <Button variant="outlined" sx={{ margin: "10px" }} onClick={clearFilters}>
-              Clear
-            </Button>
-          </Box>
-        </Box>
-      </Drawer>
-
-      <Box component="main" sx={{ flexGrow: 1, width: `calc(100% - ${drawerWidth}px)` }}>
         <Toolbar />
         <Box sx={{ p: 3 }}>
           {isHomePage ? (
