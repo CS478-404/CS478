@@ -12,21 +12,25 @@ let router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
+    children: [
+      {
+        index: true,
+      },
+      {
+        path: "recipe/:id",
+        element: <Recipe />,
+      },
+      {
+        path: "create",
+        element: <CreateRecipe />,
+      },
+      {
+        path: "favorites",
+        element: <Favorites />,
+      },
+    ],
   },
-  {
-    path: "/recipe/:id",
-    element: <Recipe />
-  },
-  {
-    path: "/create",
-    element: <CreateRecipe />
-  },
-  {
-    path: "/favorites",
-    element: <Favorites />
-  }
 ]);
-
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

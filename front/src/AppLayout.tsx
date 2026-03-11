@@ -20,7 +20,7 @@ import AppBar from "@mui/material/AppBar";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import { useMemo, useState } from "react";
-import { Form, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Pagination from "@mui/material/Pagination";
 
 type Props = {
@@ -49,6 +49,8 @@ type Props = {
   onLogout: () => void;
 };
 
+const drawerWidth = 280;
+
 function FavoriteIcon() {
   return null;
 }
@@ -66,9 +68,9 @@ export default function AppLayout({
   onRegisterClick,
   onLogout,
 }: Props) {
-  let [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  let [searchInput, setSearchInput] = useState<string>("");
-  let [searchQuery, setSearchQuery] = useState<string>("");
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
@@ -85,7 +87,9 @@ export default function AppLayout({
   >(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const itemsPerPage = 24;
+  const isHomePage = location.pathname === "/";
 
   const baseMeals = useMemo(() => {
     const src = filterResults ?? (Array.isArray(meals) ? meals : []);
@@ -99,13 +103,13 @@ export default function AppLayout({
   }, [baseMeals, searchQuery]);
 
   const displayedMeals = useMemo(() => {
-      const start = (page - 1) * itemsPerPage;
-      const end = start + itemsPerPage;
-      return visibleMeals.slice(start, end);
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return visibleMeals.slice(start, end);
   }, [visibleMeals, page]);
 
   const searchOptions = useMemo(() => {
-    return baseMeals.slice(0, 100).map((m) => m.strMeal);
+    return baseMeals.slice(0, 100).map((meal) => meal.strMeal);
   }, [baseMeals]);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -116,24 +120,65 @@ export default function AppLayout({
     setAnchorElUser(null);
   };
 
+  const runSearch = (value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+    navigate("/");
+  };
+
+  const runFilters = async () => {
+    let response;
+    if (
+      selectedIngredients.length === 0 &&
+      selectedCategories.length === 0 &&
+      selectedAreas.length === 0 &&
+      selectedTags.length === 0
+    ) {
+      response = await fetch("/api/meals");
+    } else {
+      response = await fetch(
+        `/api/meals?ingredients=${selectedIngredients.join(",")}&category=${selectedCategories.join(",")}&area=${selectedAreas.join(",")}&tags=${selectedTags.join(",")}`,
+      );
+    }
+
+    const data = await response.json();
+    setFilterResults(Array.isArray(data) ? data : []);
+    setPage(1);
+    navigate("/");
+  };
+
+  const clearFilters = () => {
+    setFilterResults(null);
+    setSelectedIngredients([]);
+    setSelectedCategories([]);
+    setSelectedAreas([]);
+    setSelectedTags([]);
+    setSearchInput("");
+    setSearchQuery("");
+    setPage(1);
+    navigate("/");
+  };
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", width: "100%" }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ display: "flex", alignItems: "center" }}>
+        <Toolbar sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}>
             <Autocomplete
               id="meal-search"
               freeSolo
               options={searchOptions}
-              filterOptions={(x) => x}
+              filterOptions={(options) => options}
+              inputValue={searchInput}
               onInputChange={(_event, value) => setSearchInput(value)}
+              onChange={(_event, value) => runSearch(value ?? searchInput)}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Search meals..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setSearchQuery(searchInput);
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      runSearch(searchInput);
                     }
                   }}
                 />
@@ -209,25 +254,27 @@ export default function AppLayout({
         variant="permanent"
         anchor="left"
         sx={{
-          width: 260,
+          width: drawerWidth,
           flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: 280, boxSizing: "border-box" },
+          [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
         }}
       >
-        <Box sx={{ marginTop: 9 }}>
+        <Toolbar />
+        <Box sx={{ mt: 1 }}>
           <Typography variant="h6" textAlign="left" marginLeft="10px">
             Filter by:
           </Typography>
 
-          <Form>
+          <Box component="form">
             <Autocomplete
               multiple
               options={ingredients}
               disableCloseOnSelect
               getOptionLabel={(ingredient) => ingredient.name}
-              value={ingredients.filter((i) => selectedIngredients.includes(i.name))}
+              value={ingredients.filter((ingredient) => selectedIngredients.includes(ingredient.name))}
               onChange={(_, newValue) => {
-                setSelectedIngredients(newValue.map((i) => i.name));
+                setSelectedIngredients(newValue.map((ingredient) => ingredient.name));
+                setPage(1);
               }}
               renderOption={(props, option, { selected }) => {
                 const { key, ...optionProps } = props;
@@ -244,7 +291,9 @@ export default function AppLayout({
                 );
               }}
               style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Ingredients" placeholder="Ingredients" />}
+              renderInput={(params) => (
+                <TextField {...params} label="Ingredients" placeholder="Ingredients" />
+              )}
             />
 
             <Autocomplete
@@ -252,9 +301,10 @@ export default function AppLayout({
               options={categories}
               disableCloseOnSelect
               getOptionLabel={(category) => category.strCategory}
-              value={categories.filter((c) => selectedCategories.includes(c.strCategory))}
+              value={categories.filter((category) => selectedCategories.includes(category.strCategory))}
               onChange={(_, newValue) => {
-                setSelectedCategories(newValue.map((c) => c.strCategory));
+                setSelectedCategories(newValue.map((category) => category.strCategory));
+                setPage(1);
               }}
               renderOption={(props, option, { selected }) => {
                 const { key, ...optionProps } = props;
@@ -271,7 +321,9 @@ export default function AppLayout({
                 );
               }}
               style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Category" placeholder="Category" />}
+              renderInput={(params) => (
+                <TextField {...params} label="Category" placeholder="Category" />
+              )}
             />
 
             <Autocomplete
@@ -279,9 +331,10 @@ export default function AppLayout({
               options={areas}
               disableCloseOnSelect
               getOptionLabel={(area) => area.strArea}
-              value={areas.filter((a) => selectedAreas.includes(a.strArea))}
+              value={areas.filter((area) => selectedAreas.includes(area.strArea))}
               onChange={(_, newValue) => {
-                setSelectedAreas(newValue.map((a) => a.strArea));
+                setSelectedAreas(newValue.map((area) => area.strArea));
+                setPage(1);
               }}
               renderOption={(props, option, { selected }) => {
                 const { key, ...optionProps } = props;
@@ -309,6 +362,7 @@ export default function AppLayout({
               value={selectedTags}
               onChange={(_, newValue) => {
                 setSelectedTags(newValue);
+                setPage(1);
               }}
               renderOption={(props, option, { selected }) => {
                 const { key, ...optionProps } = props;
@@ -328,111 +382,89 @@ export default function AppLayout({
               renderInput={(params) => <TextField {...params} label="Tags" placeholder="Tags" />}
             />
 
-            <Button
-              variant="contained"
-              sx={{ margin: "10px" }}
-              onClick={async () => {
-                let response;
-                let data;
-                if (
-                  selectedIngredients.length === 0 &&
-                  selectedCategories.length === 0 &&
-                  selectedAreas.length === 0 &&
-                  selectedTags.length === 0
-                ) {
-                  response = await fetch("/api/meals");
-                } else {
-                  response = await fetch(
-                    `/api/meals?ingredients=${selectedIngredients.join(",")}&category=${selectedCategories.join(
-                      ",",
-                    )}&area=${selectedAreas.join(",")}&tags=${selectedTags.join(",")}`,
-                  );
-                }
-                data = await response.json();
-                setFilterResults(Array.isArray(data) ? data : []);
-              }}
-            >
+            <Button variant="contained" sx={{ margin: "10px" }} onClick={runFilters}>
               Filter
             </Button>
 
-            <Button
-              variant="outlined"
-              sx={{ margin: "10px" }}
-              onClick={() => {
-                setFilterResults(null);
-                setSelectedIngredients([]);
-                setSelectedCategories([]);
-                setSelectedAreas([]);
-                setSelectedTags([]);
-                setSearchInput("");
-                setSearchQuery("");
-              }}
-            >
+            <Button variant="outlined" sx={{ margin: "10px" }} onClick={clearFilters}>
               Clear
             </Button>
-          </Form>
+          </Box>
         </Box>
       </Drawer>
 
-      <Box sx={{ width: "100%" }}>
-        <Grid container spacing={1} marginTop={10}>
-          {displayedMeals.map((meal) => (
-            <Grid key={meal.id}>
-              <Card sx={{ width: 250, height: 300, cursor: "pointer" }} variant="outlined">
-                <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
-                  <CardMedia
-                    component="img"
-                    sx={{ maxHeight: 200 }}
-                    image={meal.strMealThumb}
-                    alt={meal.strMeal}
-                    loading="lazy"
-                  />
-                  <CardContent>
-                    <Typography
-                      component="h1"
-                      color="textPrimary"
-                      sx={{
-                        fontSize: 25,
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {meal.strMeal}
-                    </Typography>
-                    <Typography component="h4" color="textSecondary">
-                      {meal.strCategory}
-                    </Typography>
-                    <Typography component="p" variant="body2" color="textDisabled">
-                      {meal.strTags}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-                <CardActions disableSpacing>
-                  <IconButton aria-label="add to favorites">
-                    <FavoriteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-          <Pagination
-              page={page}
-              count={Math.ceil(visibleMeals.length / itemsPerPage)}
-              onChange={(_, value) => setPage(value)}
-              variant="outlined"
-              sx={{
-                  display: "flex", justifyContent: "center", marginTop: 3, "& .MuiPaginationItem-root": {
-                      color: "white",
-                      borderColor: "white"
-                  }, "& .Mui-selected": {
-                      backgroundColor: "#1976d2",
-                      color: "white",
-                      borderColor: "#1976d2"
-                  }
-              }}
-          />
+      <Box component="main" sx={{ flexGrow: 1, width: `calc(100% - ${drawerWidth}px)` }}>
+        <Toolbar />
+        <Box sx={{ p: 3 }}>
+          {isHomePage ? (
+            <>
+              <Grid container spacing={2} justifyContent="center" alignItems="flex-start">
+                {displayedMeals.map((meal) => (
+                  <Grid key={meal.id}>
+                    <Card sx={{ width: 250, height: 300, cursor: "pointer" }} variant="outlined">
+                      <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
+                        <CardMedia
+                          component="img"
+                          sx={{ maxHeight: 200 }}
+                          image={meal.strMealThumb}
+                          alt={meal.strMeal}
+                          loading="lazy"
+                        />
+                        <CardContent>
+                          <Typography
+                            component="h1"
+                            color="textPrimary"
+                            sx={{
+                              fontSize: 25,
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {meal.strMeal}
+                          </Typography>
+                          <Typography component="h4" color="textSecondary">
+                            {meal.strCategory}
+                          </Typography>
+                          <Typography component="p" variant="body2" color="textDisabled">
+                            {meal.strTags}
+                          </Typography>
+                        </CardContent>
+                      </CardActionArea>
+                      <CardActions disableSpacing>
+                        <IconButton aria-label="add to favorites">
+                          <FavoriteIcon />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+              <Pagination
+                page={page}
+                count={Math.ceil(visibleMeals.length / itemsPerPage)}
+                onChange={(_, value) => setPage(value)}
+                variant="outlined"
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 3,
+                  "& .MuiPaginationItem-root": {
+                    color: "white",
+                    borderColor: "white",
+                  },
+                  "& .Mui-selected": {
+                    backgroundColor: "#1976d2",
+                    color: "white",
+                    borderColor: "#1976d2",
+                  },
+                }}
+              />
+            </>
+          ) : (
+            <Outlet />
+          )}
+        </Box>
       </Box>
     </Box>
   );

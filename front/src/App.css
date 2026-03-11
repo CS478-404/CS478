@@ -1,7 +1,8 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
   text-align: center;
 }
 
@@ -66,7 +67,6 @@ h2 {
   text-align: left;
   justify-content: center;
   width: 80%;
-  
 }
 
 .details img {
@@ -100,7 +100,7 @@ h2 {
   align-items: center;
   justify-content: flex-start;
   margin-left: 0;
-  width: 100%; 
+  width: 100%;
 }
 
 .step {
@@ -140,16 +140,7 @@ h2 {
   padding: 24px !important;
 }
 
-
 .MuiIconButton-root:focus,
 .MuiIconButton-root:focus-visible {
   outline: none !important;
-}
-
-.alert-container {
-  position: fixed;
-  top: 16px;
-  left: 16px;
-  z-index: 9999;
-  min-width: 300px;
 }
