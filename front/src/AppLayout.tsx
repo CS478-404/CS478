@@ -168,7 +168,31 @@ export default function AppLayout({
     <Box sx={{ display: "flex", minHeight: "100vh", width: "100%" }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}>
+          <Box
+            onClick={() => navigate("/")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 0,
+              cursor: "pointer",
+              mr: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src="/cookBooks.png"
+              alt="CookBooks"
+              sx={{
+                display: "block",
+                width: { xs: 120, sm: 150, md: 180 },
+                height: "auto",
+                maxHeight: { xs: 36, sm: 44, md: 52 },
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+
+          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", minWidth: 0 }}>
             <Autocomplete
               id="meal-search"
               freeSolo
@@ -197,11 +221,20 @@ export default function AppLayout({
                   }}
                 />
               )}
-              sx={{ width: "100%" }}
+              sx={{ width: "100%", maxWidth: 700 }}
             />
           </Box>
 
-          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "right", gap: 2 }}>
+          <Box
+            sx={{
+              flexGrow: 0,
+              display: "flex",
+              justifyContent: "right",
+              gap: 2,
+              alignItems: "center",
+              minWidth: "fit-content",
+            }}
+          >
             {isLoggedIn ? (
               <>
                 <Typography sx={{ color: "primary.contrastText", fontWeight: 600 }}>
