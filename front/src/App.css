@@ -13,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(139, 58, 46, 0.28));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(184, 106, 60, 0.28));
 }
 
 @keyframes logo-spin {
@@ -43,7 +43,7 @@ h2 {
 }
 
 .read-the-docs {
-  color: #888;
+  color: #6b534b;
 }
 
 .recipe-page {
@@ -111,7 +111,7 @@ h2 {
 
 .step-number {
   font-weight: bold;
-  color: #646cff;
+  color: #8b3a2e;
   flex-shrink: 0;
   min-width: 2rem;
 }

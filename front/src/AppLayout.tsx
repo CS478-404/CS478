@@ -7,11 +7,14 @@ import CardActionArea from "@mui/material/CardActionArea";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
+import Chip from "@mui/material/Chip";
 import Drawer from "@mui/material/Drawer";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Pagination from "@mui/material/Pagination";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
@@ -19,9 +22,10 @@ import Typography from "@mui/material/Typography";
 import AppBar from "@mui/material/AppBar";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
+import SellIcon from "@mui/icons-material/Sell";
 import { useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import Pagination from "@mui/material/Pagination";
 
 type Props = {
   isLoggedIn: boolean;
@@ -182,19 +186,36 @@ export default function AppLayout({
                       runSearch(searchInput);
                     }
                   }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "rgba(255, 249, 244, 0.95)",
+                      borderRadius: 0,
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "text.secondary",
+                    },
+                  }}
                 />
               )}
-              sx={{ width: "100%", color: "white" }}
+              sx={{ width: "100%" }}
             />
           </Box>
 
           <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "right", gap: 2 }}>
             {isLoggedIn ? (
               <>
-                <div>Hello, {username}!</div>
+                <Typography sx={{ color: "primary.contrastText", fontWeight: 600 }}>
+                  Hello, {username}!
+                </Typography>
                 <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar />
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, borderRadius: 0 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.2)",
+                        color: "primary.contrastText",
+                        borderRadius: 0,
+                      }}
+                    />
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -244,7 +265,18 @@ export default function AppLayout({
                 <Button variant="contained" onClick={onLoginClick}>
                   Log in
                 </Button>
-                <Button variant="outlined" onClick={onRegisterClick} sx={{ color: "white" }}>
+                <Button
+                  variant="outlined"
+                  onClick={onRegisterClick}
+                  sx={{
+                    color: "primary.contrastText",
+                    borderColor: "rgba(255,255,255,0.55)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.85)",
+                      backgroundColor: "rgba(255,255,255,0.08)",
+                    },
+                  }}
+                >
                   Create account
                 </Button>
               </>
@@ -260,12 +292,16 @@ export default function AppLayout({
           sx={{
             width: drawerWidth,
             flexShrink: 0,
-            [`& .MuiDrawer-paper`]: { width: drawerWidth, boxSizing: "border-box" },
+            [`& .MuiDrawer-paper`]: {
+              width: drawerWidth,
+              boxSizing: "border-box",
+              borderRadius: 0,
+            },
           }}
         >
           <Toolbar />
           <Box sx={{ mt: 1 }}>
-            <Typography variant="h6" textAlign="left" marginLeft="10px">
+            <Typography variant="h6" textAlign="left" marginLeft="10px" sx={{ fontWeight: 800 }}>
               Filter by:
             </Typography>
 
@@ -414,64 +450,138 @@ export default function AppLayout({
           {isHomePage ? (
             <>
               <Grid container spacing={2} justifyContent="center" alignItems="flex-start">
-                {displayedMeals.map((meal) => (
-                  <Grid key={meal.id}>
-                    <Card sx={{ width: 250, height: 300, cursor: "pointer" }} variant="outlined">
-                      <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
-                        <CardMedia
-                          component="img"
-                          sx={{ maxHeight: 200 }}
-                          image={meal.strMealThumb}
-                          alt={meal.strMeal}
-                          loading="lazy"
-                        />
-                        <CardContent>
-                          <Typography
-                            component="h1"
-                            color="textPrimary"
+                {displayedMeals.map((meal) => {
+                  const mealTags = meal.strTags
+                    ? meal.strTags
+                        .split(",")
+                        .map((tag) => tag.trim())
+                        .filter(Boolean)
+                    : [];
+
+                  return (
+                    <Grid key={meal.id}>
+                      <Card
+                        sx={{
+                          width: 280,
+                          height: 360,
+                          cursor: "pointer",
+                          borderRadius: 0,
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                        variant="outlined"
+                      >
+                        <CardActionArea
+                          onClick={() => navigate(`/recipe/${meal.id}`)}
+                          sx={{
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "stretch",
+                          }}
+                        >
+                          <CardMedia
+                            component="img"
                             sx={{
-                              fontSize: 25,
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
+                              height: 190,
+                              width: "100%",
+                              objectFit: "cover",
+                              flexShrink: 0,
+                            }}
+                            image={meal.strMealThumb}
+                            alt={meal.strMeal}
+                            loading="lazy"
+                          />
+
+                          <CardContent
+                            sx={{
+                              flexGrow: 1,
+                              width: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              textAlign: "left",
+                              gap: 1.5,
                             }}
                           >
-                            {meal.strMeal}
-                          </Typography>
-                          <Typography component="h4" color="textSecondary">
-                            {meal.strCategory}
-                          </Typography>
-                          <Typography component="p" variant="body2" color="textDisabled">
-                            {meal.strTags}
-                          </Typography>
-                        </CardContent>
-                      </CardActionArea>
-                      <CardActions disableSpacing>
-                        <IconButton aria-label="add to favorites">
-                          <FavoriteIcon />
-                        </IconButton>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
+                            <Stack spacing={1} sx={{ width: "100%" }}>
+                              <Typography
+                                variant="h6"
+                                component="h2"
+                                sx={{
+                                  fontWeight: 800,
+                                  lineHeight: 1.2,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                  minHeight: "2.4em",
+                                }}
+                              >
+                                {meal.strMeal}
+                              </Typography>
+
+                              <Chip
+                                icon={<RestaurantMenuIcon />}
+                                label={meal.strCategory || "Uncategorized"}
+                                size="small"
+                                variant="outlined"
+                                sx={{ borderRadius: 0, alignSelf: "flex-start" }}
+                              />
+                            </Stack>
+
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              useFlexGap
+                              flexWrap="wrap"
+                              sx={{ width: "100%" }}
+                            >
+                              {mealTags.length > 0 ? (
+                                mealTags.slice(0, 3).map((tag) => (
+                                  <Chip
+                                    key={tag}
+                                    icon={<SellIcon />}
+                                    label={tag}
+                                    size="small"
+                                    sx={{ borderRadius: 0 }}
+                                  />
+                                ))
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No tags
+                                </Typography>
+                              )}
+                            </Stack>
+                          </CardContent>
+                        </CardActionArea>
+
+                        <CardActions disableSpacing>
+                          <IconButton aria-label="add to favorites" sx={{ borderRadius: 0 }}>
+                            <FavoriteIcon />
+                          </IconButton>
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  );
+                })}
               </Grid>
+
               <Pagination
                 page={page}
                 count={Math.ceil(visibleMeals.length / itemsPerPage)}
                 onChange={(_, value) => setPage(value)}
                 variant="outlined"
+                color="primary"
                 sx={{
                   display: "flex",
                   justifyContent: "center",
                   marginTop: 3,
                   "& .MuiPaginationItem-root": {
-                    color: "white",
-                    borderColor: "white",
-                  },
-                  "& .Mui-selected": {
-                    backgroundColor: "#1976d2",
-                    color: "white",
-                    borderColor: "#1976d2",
+                    borderColor: "divider",
+                    borderRadius: 0,
                   },
                 }}
               />

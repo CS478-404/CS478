@@ -208,13 +208,13 @@ export default function Recipe() {
             alignItems: "center",
             justifyContent: "center",
             gap: 2,
-            borderRadius: 4,
+            borderRadius: 0,
             border: "1px solid",
             borderColor: "divider",
             bgcolor: "background.paper",
           }}
         >
-          <CircularProgress />
+          <CircularProgress color="primary" />
           <Typography variant="h6">Loading recipe...</Typography>
         </Paper>
       </Container>
@@ -245,10 +245,10 @@ export default function Recipe() {
               elevation={0}
               sx={{
                 overflow: "hidden",
-                borderRadius: 5,
+                borderRadius: 0,
                 border: "1px solid",
                 borderColor: "divider",
-                bgcolor: "#fff",
+                bgcolor: "background.paper",
               }}
             >
               <Box
@@ -270,7 +270,7 @@ export default function Recipe() {
                   }}
                 />
 
-                <Box sx={{ p: { xs: 3, sm: 4, md: 5 }, bgcolor: "#fff" }}>
+                <Box sx={{ p: { xs: 3, sm: 4, md: 5 }, bgcolor: "background.paper" }}>
                   <Stack spacing={2.5}>
                     <Stack
                       direction={{ xs: "column", sm: "row" }}
@@ -300,7 +300,8 @@ export default function Recipe() {
                             height: 56,
                             border: "1px solid",
                             borderColor: isFavorite ? "error.main" : "divider",
-                            bgcolor: isFavorite ? "rgba(244,67,54,0.08)" : "background.paper",
+                            bgcolor: isFavorite ? "rgba(181, 66, 44, 0.08)" : "background.paper",
+                            borderRadius: 0,
                           }}
                         >
                           {isFavorite ? <Favorite color="error" /> : <FavoriteBorder />}
@@ -308,7 +309,13 @@ export default function Recipe() {
                       </Tooltip>
                     </Stack>
 
-                    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="center"
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
                       <Stack direction="row" spacing={1} alignItems="center">
                         <Rating
                           value={rating ?? 0}
@@ -374,7 +381,7 @@ export default function Recipe() {
               <Card
                 elevation={0}
                 sx={{
-                  borderRadius: 4,
+                  borderRadius: 0,
                   border: "1px solid",
                   borderColor: "divider",
                   position: { xl: "sticky" },
@@ -415,7 +422,7 @@ export default function Recipe() {
                 <Card
                   elevation={0}
                   sx={{
-                    borderRadius: 4,
+                    borderRadius: 0,
                     border: "1px solid",
                     borderColor: "divider",
                     width: "100%",
@@ -433,7 +440,7 @@ export default function Recipe() {
                           elevation={0}
                           sx={{
                             p: 2,
-                            borderRadius: 3,
+                            borderRadius: 0,
                             border: "1px solid",
                             borderColor: "divider",
                             bgcolor: "background.default",
@@ -444,12 +451,12 @@ export default function Recipe() {
                               sx={{
                                 minWidth: 40,
                                 height: 40,
-                                borderRadius: "50%",
                                 display: "grid",
                                 placeItems: "center",
                                 bgcolor: "primary.main",
                                 color: "primary.contrastText",
                                 fontWeight: 700,
+                                borderRadius: 0,
                               }}
                             >
                               {index + 1}
@@ -467,7 +474,7 @@ export default function Recipe() {
                 <Card
                   elevation={0}
                   sx={{
-                    borderRadius: 4,
+                    borderRadius: 0,
                     border: "1px solid",
                     borderColor: "divider",
                     width: "100%",
