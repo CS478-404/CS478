@@ -12,8 +12,6 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Breadcrumbs from '@mui/material/Breadcrumbs';
-import Link from '@mui/material/Link';
 import { useNavigate } from 'react-router-dom';
 
 type Meal = {
@@ -56,17 +54,6 @@ function Favorites() {
                 )}
             </div>
             <div style={{ display: "flex", justifyContent: "center" }}>
-                <Breadcrumbs aria-label="breadcrumb">
-                    <Link
-                        underline="hover"
-                        color="inherit"
-                        onClick={() => navigate("/")}
-                        sx={{ cursor: "pointer" }}
-                    >
-                        Home
-                    </Link>
-                    <Typography color="text.primary">My Favorites</Typography>
-                </Breadcrumbs>
             </div>
             <h1 style={{ marginTop: 0, marginBottom: 24 }}>
                 My Favorites

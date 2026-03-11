@@ -1,295 +1,497 @@
-import {useNavigate, useParams} from 'react-router-dom';
-import axios from 'axios';
-import { useState, useEffect } from 'react';
-import {Alert, Breadcrumbs, Container, IconButton, Link, Typography} from '@mui/material';
-import { Star, StarBorder, StarHalf } from '@mui/icons-material';
-import './App.css';
-import CommentSection from './CommentSection';
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
+import {
+  Alert,
+  Box,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Container,
+  Divider,
+  IconButton,
+  Paper,
+  Rating,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import {
+  Favorite,
+  FavoriteBorder,
+  Public,
+  Restaurant,
+  Sell,
+  Star,
+} from "@mui/icons-material";
+import CommentSection from "./CommentSection";
+
+interface RecipeIngredient {
+  name: string;
+  measure: string;
+}
 
 interface Recipe {
-    id: number;
-    strMeal: string;
-    strMealThumb: string;
-    strInstructions: string;
-    strCategory?: string;
-    strArea?: string;
-    strTags?: string;
-    ingredients?: Array<{
-        name: string;
-        measure: string;
-    }>;
+  id: number;
+  strMeal: string;
+  strMealThumb: string;
+  strInstructions: string;
+  strCategory?: string;
+  strArea?: string;
+  strTags?: string;
+  ingredients?: RecipeIngredient[];
 }
 
-function Recipe() {
-    let { id } = useParams<{ id: string }>();
-    let [recipe, setRecipe] = useState<Recipe | null>(null);
-    let [error, setError] = useState<string | null>(null);
-    let [loading, setLoading] = useState(true);
-    let [isFavorite, setIsFavorite] = useState(false);
-    let [rating, setRating] = useState<number | null>(null);
-    let [ratingCount, setRatingCount] = useState<number>(0);
-    let [userRating, setUserRating] = useState<number | null>(null);
-    let navigate = useNavigate();
+function parseInstructions(instructions: string) {
+  if (!instructions) return [] as string[];
 
-    const submitRating = async (value: number) => {
-        setError(null);
-        try {
-            const response = await axios.post(`/api/recipe/${id}/rating`, { rating: value });
-            if (!response.data.ok) {
-                if (response.data.error) {
-                    setError(response.data.error);
-                } else {
-                    setError("Failed to submit rating");
-                }
-                return;
-            }
-            setUserRating(value);
-            
-            let ratingResponse = (await axios.get(`/api/recipe/${id}/rating`)).data;
-            setRating(ratingResponse.rating);
-            setRatingCount(ratingResponse.amount);
-        } catch (err) {
-            if (axios.isAxiosError(err)) {
-                setError(err.response?.data?.error || "Failed to submit rating");
-            } else {
-                setError("Failed to submit rating");
-            }
-        }
-    };
+  const lines = instructions
+    .split(/\r\n|\r|\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !/^(step\s*\d+|\d+\.)$/i.test(line));
 
-    useEffect(() => {
-        let fetchRecipe = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-                
-                let recipeResponse = (await axios.get(`/api/recipe/${id}`)).data;
-                
-                recipeResponse.ingredients = [];
-                
-                let ingredients = (await axios.get(`/api/recipe/${id}/ingredients`)).data;
-                
-                for (let ingredient of ingredients) {
-                    let nameResponse = await axios.get(`/api/ingredient/${ingredient.idIngredient}`);
-                    recipeResponse.ingredients.push({
-                        name: nameResponse.data.name,
-                        measure: ingredient.measure
-                    });
-                }
-                setRecipe(recipeResponse);
-
-                let ratingResponse = (await axios.get(`/api/recipe/${id}/rating`)).data;
-                setRating(ratingResponse.rating);
-                setRatingCount(ratingResponse.amount);
-
-                let userRatingResponse = (await axios.get(`/api/recipe/${id}/user-rating`)).data;
-                setUserRating(userRatingResponse.rating);
-
-                axios.get(`/api/favorites/${id}`).then(res => {
-                    setIsFavorite(res.data.isFavorite);
-                });
-            } catch (err) {
-                console.error(err);
-                setError("Failed to fetch recipe");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        if (id) {
-            fetchRecipe();
-        }
-    }, [id]);
-
-    let parseInstructions = (instructions: string) => {
-        if (!instructions) return [];
-        let lines = instructions
-            .split(/\r\n|\r|\n/)
-            .map(line => line.trim())
-            .filter(line =>
-                line.length > 0 &&
-                !/^(step\s*\d+|\d+\.)$/i.test(line)
-            );
-
-        let combined: string[] = [];
-        for (let i = 0; i < lines.length; i++) {
-            if (lines[i].endsWith(':') && i + 1 < lines.length) {
-                combined.push(lines[i] + ' ' + lines[i + 1]);
-                i++;
-            } else {
-                combined.push(lines[i]);
-            }
-        }
-        return combined;
-    };
-    
-    let instructions = parseInstructions(recipe?.strInstructions || '');
-    let tags = recipe?.strTags ? recipe.strTags.split(',').map(tag => tag.trim()) : [];
-
-    let addToFavorites = async (recipeId: number) => {
-        try {
-            await axios.post(`/api/favorites`, { data: { recipeId } });
-        } catch (error) {
-            console.error("Error adding to favorites:", error);
-        }
-    };
-
-    let removeFromFavorites = async (recipeId: number) => {
-        try {
-            await axios.delete(`/api/favorites`, { data: { recipeId } });
-        } catch (error) {
-            console.error("Error removing from favorites:", error);
-        }
+  const combined: string[] = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].endsWith(":") && index + 1 < lines.length) {
+      combined.push(`${lines[index]} ${lines[index + 1]}`);
+      index += 1;
+    } else {
+      combined.push(lines[index]);
     }
+  }
 
-    let toggleFavorite = () => {
-        setIsFavorite(!isFavorite);
-        if (!isFavorite) {
-            addToFavorites(recipe!.id);
-        } else {
-            removeFromFavorites(recipe!.id);
-        }
-    };
-
-
-    return (
-        <>
-            <div className="recipe-page">
-                <div className="errorHandler">
-                    {error && (
-                        <div className="alert-container">
-                            <Alert severity="error">{error}</Alert>
-                        </div>
-                    )}
-                    {!loading && !recipe && !error && <Container maxWidth="md" sx={{ py: 1 }}>
-                        <Alert severity="info">Recipe not found.</Alert>
-                    </Container>}
-                    {loading && <Container maxWidth="md" sx={{ py: 1 }}>
-                        <Alert severity="info">Loading recipe...</Alert>
-                    </Container>}
-                </div>
-                {recipe && (
-                    <>
-                        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
-                            <Link
-                                underline="hover"
-                                color="inherit"
-                                onClick={() => navigate("/")}
-                                sx={{ cursor: "pointer" }}
-                            >
-                                Home
-                            </Link>
-                            <Typography color="text.primary">{recipe.strMeal}</Typography>
-                        </Breadcrumbs>
-                        <div className="details">
-                            <img src={recipe.strMealThumb} alt={recipe.strMeal}></img>
-                            <div className="recipe-info">
-                                <div className="recipe-header">
-                                    <h1>{recipe.strMeal}</h1>
-                                    <IconButton 
-                                        onClick={toggleFavorite}
-                                        className="favorite-button"
-                                        aria-label="toggle favorite"
-                                        sx={{ 
-                                            '& .MuiTouchRipple-root': { display: 'none' },
-                                            marginTop: '10px',
-                                            marginLeft: '10px'
-                                        }}
-                                    >
-                                        {isFavorite ? (
-                                            <Star sx={{ color: '#ffd700', fontSize: '2rem' }} />
-                                        ) : (
-                                            <StarBorder sx={{ color: '#646cff', fontSize: '2rem' }} />
-                                        )}
-                                    </IconButton>
-                                </div>
-                                <div className="recipe-rating" style={{
-                                    marginBottom: '6px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    minHeight: '32px',
-                                    justifyContent: 'flex-start'
-                                }}>
-                                    {typeof rating === "number" && !isNaN(rating) && ratingCount && ratingCount > 0 ? (
-                                        <>
-                                            {(() => {
-                                                const rounded = Math.round(rating * 2) / 2;
-                                                return [1,2,3,4,5].map((star) => {
-                                                    if (star <= Math.floor(rounded)) {
-                                                        return <Star key={star} sx={{ color: '#ffd700', fontSize: '1.5rem' }} />;
-                                                    } else if (star === Math.ceil(rounded) && rounded % 1 === 0.5) {
-                                                        return <StarHalf key={star} sx={{ color: '#ffd700', fontSize: '1.5rem' }} />;
-                                                    } else {
-                                                        return <StarBorder key={star} sx={{ color: '#646cff', fontSize: '1.5rem' }} />;
-                                                    }
-                                                });
-                                            })()}
-                                            <span style={{ marginLeft: 8, fontWeight: 500 }}>
-                                                {rating.toFixed(1)} ({ratingCount})
-                                            </span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            {[1,2,3,4,5].map((star) =>
-                                                <StarBorder key={star} sx={{ color: '#bbb', fontSize: '1.5rem' }} />
-                                            )}
-                                            <span style={{ marginLeft: 8, color: '#888', fontWeight: 500 }}>(unrated)</span>
-                                        </>
-                                    )}
-                                </div>
-                                <p><strong>Category:</strong> {recipe.strCategory}</p>
-                                <p><strong>Area:</strong> {recipe.strArea}</p>
-                                {tags.length > 0 && (
-                                    <p><strong>Tags:</strong> {tags.join(', ')}</p>
-                                )}
-                                {recipe.ingredients && recipe.ingredients.length > 0 && (
-                                <div className="ingredients">
-                                    <h2>Ingredients</h2>
-                                    <ul className={recipe.ingredients.length > 10 ? 'two-columns' : ''}>
-                                        {recipe.ingredients.map((ingredient, index) => (
-                                            <li key={index}>
-                                                {ingredient.measure} {ingredient.name}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="instructions">
-                            <h2>Instructions</h2>
-                            <div className="steps">
-                                {instructions.map((step, index) => (
-                                    <div key={index} className="step">
-                                        <span className="step-number">{index + 1}.</span>
-                                        <span className="step-text">{step}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="rating-section">
-                            <span style={{ marginRight: 8 }}>Your Rating:</span>
-                            {[1,2,3,4,5].map((star) =>
-                                <IconButton
-                                    key={star}
-                                    onClick={() => submitRating(star)}
-                                    disabled={loading}
-                                    sx={{ padding: 0 }}
-                                >
-                                    {userRating && star <= userRating
-                                        ? <Star sx={{ color: '#ffd700', fontSize: '1.5rem' }} />
-                                        : <StarBorder sx={{ color: '#646cff', fontSize: '1.5rem' }} />}
-                                </IconButton>
-                            )}
-                        </div>
-                        <div className="comments">
-                            <CommentSection recipeId={recipe.id} />
-                        </div>
-</>
-                )}
-            </div>
-        </>
-    );
+  return combined;
 }
 
-export default Recipe;
+export default function Recipe() {
+  const { id } = useParams<{ id: string }>();
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [rating, setRating] = useState<number | null>(null);
+  const [ratingCount, setRatingCount] = useState(0);
+  const [userRating, setUserRating] = useState<number | null>(null);
+
+  const refreshRatings = async () => {
+    const ratingResponse = (await axios.get(`/api/recipe/${id}/rating`)).data;
+    setRating(ratingResponse.rating);
+    setRatingCount(ratingResponse.amount);
+
+    try {
+      const userRatingResponse = (await axios.get(`/api/recipe/${id}/user-rating`)).data;
+      setUserRating(userRatingResponse.rating);
+    } catch {
+      setUserRating(null);
+    }
+  };
+
+  const submitRating = async (_event: React.SyntheticEvent, value: number | null) => {
+    if (!value) return;
+
+    setError(null);
+    try {
+      const response = await axios.post(`/api/recipe/${id}/rating`, { rating: value });
+      if (!response.data.ok) {
+        setError(response.data.error || "Failed to submit rating");
+        return;
+      }
+
+      setUserRating(value);
+      await refreshRatings();
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error || "Failed to submit rating");
+      } else {
+        setError("Failed to submit rating");
+      }
+    }
+  };
+
+  useEffect(() => {
+    const fetchRecipe = async () => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        const recipeResponse = (await axios.get(`/api/recipe/${id}`)).data as Recipe;
+        const ingredientRows = (await axios.get(`/api/recipe/${id}/ingredients`)).data;
+
+        const ingredients = await Promise.all(
+          ingredientRows.map(async (ingredient: { idIngredient: number; measure: string }) => {
+            const ingredientResponse = await axios.get(`/api/ingredient/${ingredient.idIngredient}`);
+            return {
+              name: ingredientResponse.data.name,
+              measure: ingredient.measure,
+            } satisfies RecipeIngredient;
+          }),
+        );
+
+        recipeResponse.ingredients = ingredients;
+        setRecipe(recipeResponse);
+
+        await refreshRatings();
+
+        try {
+          const favoriteResponse = await axios.get(`/api/favorites/${id}`);
+          setIsFavorite(favoriteResponse.data.isFavorite);
+        } catch {
+          setIsFavorite(false);
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Failed to fetch recipe");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRecipe();
+  }, [id]);
+
+  const tags = useMemo(
+    () =>
+      recipe?.strTags
+        ? recipe.strTags.split(",").map((tag) => tag.trim()).filter(Boolean)
+        : [],
+    [recipe?.strTags],
+  );
+
+  const instructions = useMemo(
+    () => parseInstructions(recipe?.strInstructions || ""),
+    [recipe?.strInstructions],
+  );
+
+  const addToFavorites = async (recipeId: number) => {
+    await axios.post(`/api/favorites`, { data: { recipeId } });
+  };
+
+  const removeFromFavorites = async (recipeId: number) => {
+    await axios.delete(`/api/favorites`, { data: { recipeId } });
+  };
+
+  const toggleFavorite = async () => {
+    if (!recipe) return;
+
+    setError(null);
+    const nextValue = !isFavorite;
+    setIsFavorite(nextValue);
+
+    try {
+      if (nextValue) {
+        await addToFavorites(recipe.id);
+      } else {
+        await removeFromFavorites(recipe.id);
+      }
+    } catch (err) {
+      setIsFavorite(!nextValue);
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.error || "Failed to update favorites");
+      } else {
+        setError("Failed to update favorites");
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 }, px: { xs: 2, md: 4 } }}>
+        <Paper
+          elevation={0}
+          sx={{
+            minHeight: 320,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            borderRadius: 0,
+            border: "1px solid",
+            borderColor: "divider",
+            bgcolor: "background.paper",
+          }}
+        >
+          <CircularProgress color="primary" />
+          <Typography variant="h6">Loading recipe...</Typography>
+        </Paper>
+      </Container>
+    );
+  }
+
+  if (!loading && !recipe) {
+    return (
+      <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 }, px: { xs: 2, md: 4 } }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        <Alert severity="info">Recipe not found.</Alert>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth={false} sx={{ py: { xs: 3, md: 5 }, px: { xs: 2, md: 4 } }}>
+      <Stack spacing={3}>
+        {error && <Alert severity="error">{error}</Alert>}
+
+        {recipe && (
+          <>
+            <Paper
+              elevation={0}
+              sx={{
+                overflow: "hidden",
+                borderRadius: 0,
+                border: "1px solid",
+                borderColor: "divider",
+                bgcolor: "background.paper",
+              }}
+            >
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", lg: "minmax(320px, 480px) 1fr" },
+                }}
+              >
+                <Box
+                  component="img"
+                  src={recipe.strMealThumb}
+                  alt={recipe.strMeal}
+                  sx={{
+                    width: "100%",
+                    height: { xs: 280, sm: 360, lg: "100%" },
+                    minHeight: { lg: 520 },
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+
+                <Box sx={{ p: { xs: 3, sm: 4, md: 5 }, bgcolor: "background.paper" }}>
+                  <Stack spacing={2.5}>
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      alignItems={{ xs: "flex-start", sm: "center" }}
+                      justifyContent="space-between"
+                      spacing={2}
+                    >
+                      <Box>
+                        <Typography variant="overline" color="primary" sx={{ letterSpacing: 1.5 }}>
+                          Recipe details
+                        </Typography>
+                        <Typography
+                          variant="h3"
+                          component="h1"
+                          sx={{ fontWeight: 800, lineHeight: 1.1, mt: 0.5 }}
+                        >
+                          {recipe.strMeal}
+                        </Typography>
+                      </Box>
+
+                      <Tooltip title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+                        <IconButton
+                          onClick={toggleFavorite}
+                          aria-label="toggle favorite"
+                          sx={{
+                            width: 56,
+                            height: 56,
+                            border: "1px solid",
+                            borderColor: isFavorite ? "error.main" : "divider",
+                            bgcolor: isFavorite ? "rgba(181, 66, 44, 0.08)" : "background.paper",
+                            borderRadius: 0,
+                          }}
+                        >
+                          {isFavorite ? <Favorite color="error" /> : <FavoriteBorder />}
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      alignItems="center"
+                      flexWrap="wrap"
+                      useFlexGap
+                    >
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Rating
+                          value={rating ?? 0}
+                          precision={0.5}
+                          readOnly
+                          emptyIcon={<Star style={{ opacity: 0.35 }} fontSize="inherit" />}
+                        />
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                          {typeof rating === "number" && ratingCount > 0
+                            ? `${rating.toFixed(1)} (${ratingCount})`
+                            : "Unrated"}
+                        </Typography>
+                      </Stack>
+
+                      {recipe.strCategory && (
+                        <Chip
+                          icon={<Restaurant />}
+                          label={recipe.strCategory}
+                          color="primary"
+                          variant="outlined"
+                        />
+                      )}
+                      {recipe.strArea && (
+                        <Chip icon={<Public />} label={recipe.strArea} variant="outlined" />
+                      )}
+                    </Stack>
+
+                    {tags.length > 0 && (
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        {tags.map((tag) => (
+                          <Chip key={tag} icon={<Sell />} label={tag} size="small" />
+                        ))}
+                      </Stack>
+                    )}
+
+                    <Divider />
+
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
+                        Your rating
+                      </Typography>
+                      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+                        <Rating value={userRating} onChange={submitRating} precision={1} size="large" />
+                        <Typography variant="body2" color="text.secondary">
+                          Click a star to rate this recipe.
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Box>
+            </Paper>
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", xl: "420px minmax(0, 1fr)" },
+                gap: 3,
+                alignItems: "start",
+                width: "100%",
+              }}
+            >
+              <Card
+                elevation={0}
+                sx={{
+                  borderRadius: 0,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  position: { xl: "sticky" },
+                  top: { xl: 96 },
+                  width: "100%",
+                }}
+              >
+                <CardContent sx={{ p: { xs: 2.5, md: 3 } }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+                    Ingredients
+                  </Typography>
+                  <Stack spacing={1.25}>
+                    {recipe.ingredients?.map((ingredient, index) => (
+                      <Box
+                        key={`${ingredient.name}-${index}`}
+                        sx={{
+                          display: "flex",
+                          alignItems: "flex-start",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          py: 1,
+                          borderBottom:
+                            index === (recipe.ingredients?.length ?? 0) - 1 ? "none" : "1px solid",
+                          borderColor: "divider",
+                        }}
+                      >
+                        <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                          {ingredient.name}
+                        </Typography>
+                        <Chip label={ingredient.measure || "To taste"} size="small" variant="outlined" />
+                      </Box>
+                    ))}
+                  </Stack>
+                </CardContent>
+              </Card>
+
+              <Stack spacing={3} sx={{ width: "100%" }}>
+                <Card
+                  elevation={0}
+                  sx={{
+                    borderRadius: 0,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    width: "100%",
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                    <Typography variant="h4" sx={{ fontWeight: 800, mb: 2.5 }}>
+                      Instructions
+                    </Typography>
+
+                    <Stack spacing={2}>
+                      {instructions.map((step, index) => (
+                        <Paper
+                          key={`${index + 1}-${step.slice(0, 24)}`}
+                          elevation={0}
+                          sx={{
+                            p: 2,
+                            borderRadius: 0,
+                            border: "1px solid",
+                            borderColor: "divider",
+                            bgcolor: "background.default",
+                          }}
+                        >
+                          <Stack direction="row" spacing={2} alignItems="flex-start">
+                            <Box
+                              sx={{
+                                minWidth: 40,
+                                height: 40,
+                                display: "grid",
+                                placeItems: "center",
+                                bgcolor: "primary.main",
+                                color: "primary.contrastText",
+                                fontWeight: 700,
+                                borderRadius: 0,
+                              }}
+                            >
+                              {index + 1}
+                            </Box>
+                            <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
+                              {step}
+                            </Typography>
+                          </Stack>
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </CardContent>
+                </Card>
+
+                <Card
+                  elevation={0}
+                  sx={{
+                    borderRadius: 0,
+                    border: "1px solid",
+                    borderColor: "divider",
+                    width: "100%",
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mb: 2 }}>
+                      Discussion
+                    </Typography>
+                    <CommentSection recipeId={recipe.id} />
+                  </CardContent>
+                </Card>
+              </Stack>
+            </Box>
+          </>
+        )}
+      </Stack>
+    </Container>
+  );
+}

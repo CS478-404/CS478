@@ -7,11 +7,14 @@ import CardActionArea from "@mui/material/CardActionArea";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
+import Chip from "@mui/material/Chip";
 import Drawer from "@mui/material/Drawer";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Pagination from "@mui/material/Pagination";
+import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
@@ -19,9 +22,10 @@ import Typography from "@mui/material/Typography";
 import AppBar from "@mui/material/AppBar";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
+import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
+import SellIcon from "@mui/icons-material/Sell";
 import { useMemo, useState } from "react";
-import { Form, useNavigate } from "react-router-dom";
-import Pagination from "@mui/material/Pagination";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 type Props = {
   isLoggedIn: boolean;
@@ -49,6 +53,8 @@ type Props = {
   onLogout: () => void;
 };
 
+const drawerWidth = 280;
+
 function FavoriteIcon() {
   return null;
 }
@@ -66,9 +72,9 @@ export default function AppLayout({
   onRegisterClick,
   onLogout,
 }: Props) {
-  let [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
-  let [searchInput, setSearchInput] = useState<string>("");
-  let [searchQuery, setSearchQuery] = useState<string>("");
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
+  const [searchInput, setSearchInput] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
@@ -85,7 +91,10 @@ export default function AppLayout({
   >(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const itemsPerPage = 24;
+  const isHomePage = location.pathname === "/";
+  const showFilters = isHomePage;
 
   const baseMeals = useMemo(() => {
     const src = filterResults ?? (Array.isArray(meals) ? meals : []);
@@ -99,13 +108,13 @@ export default function AppLayout({
   }, [baseMeals, searchQuery]);
 
   const displayedMeals = useMemo(() => {
-      const start = (page - 1) * itemsPerPage;
-      const end = start + itemsPerPage;
-      return visibleMeals.slice(start, end);
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return visibleMeals.slice(start, end);
   }, [visibleMeals, page]);
 
   const searchOptions = useMemo(() => {
-    return baseMeals.slice(0, 100).map((m) => m.strMeal);
+    return baseMeals.slice(0, 100).map((meal) => meal.strMeal);
   }, [baseMeals]);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -116,39 +125,130 @@ export default function AppLayout({
     setAnchorElUser(null);
   };
 
+  const runSearch = (value: string) => {
+    setSearchQuery(value);
+    setPage(1);
+    navigate("/");
+  };
+
+  const runFilters = async () => {
+    let response;
+    if (
+      selectedIngredients.length === 0 &&
+      selectedCategories.length === 0 &&
+      selectedAreas.length === 0 &&
+      selectedTags.length === 0
+    ) {
+      response = await fetch("/api/meals");
+    } else {
+      response = await fetch(
+        `/api/meals?ingredients=${selectedIngredients.join(",")}&category=${selectedCategories.join(",")}&area=${selectedAreas.join(",")}&tags=${selectedTags.join(",")}`,
+      );
+    }
+
+    const data = await response.json();
+    setFilterResults(Array.isArray(data) ? data : []);
+    setPage(1);
+    navigate("/");
+  };
+
+  const clearFilters = () => {
+    setFilterResults(null);
+    setSelectedIngredients([]);
+    setSelectedCategories([]);
+    setSelectedAreas([]);
+    setSelectedTags([]);
+    setSearchInput("");
+    setSearchQuery("");
+    setPage(1);
+    navigate("/");
+  };
+
   return (
-    <Box sx={{ display: "flex" }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", width: "100%" }}>
       <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ display: "flex", alignItems: "center" }}>
-          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}>
+        <Toolbar sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          <Box
+            onClick={() => navigate("/")}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexShrink: 0,
+              cursor: "pointer",
+              mr: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src="/cookBooks.png"
+              alt="CookBooks"
+              sx={{
+                display: "block",
+                width: { xs: 120, sm: 150, md: 180 },
+                height: "auto",
+                maxHeight: { xs: 36, sm: 44, md: 52 },
+                objectFit: "contain",
+              }}
+            />
+          </Box>
+
+          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", minWidth: 0 }}>
             <Autocomplete
               id="meal-search"
               freeSolo
               options={searchOptions}
-              filterOptions={(x) => x}
+              filterOptions={(options) => options}
+              inputValue={searchInput}
               onInputChange={(_event, value) => setSearchInput(value)}
+              onChange={(_event, value) => runSearch(value ?? searchInput)}
               renderInput={(params) => (
                 <TextField
                   {...params}
                   label="Search meals..."
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setSearchQuery(searchInput);
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      runSearch(searchInput);
                     }
+                  }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      bgcolor: "rgba(255, 249, 244, 0.95)",
+                      borderRadius: 0,
+                    },
+                    "& .MuiInputLabel-root": {
+                      color: "text.secondary",
+                    },
                   }}
                 />
               )}
-              sx={{ width: "100%", color: "white" }}
+              sx={{ width: "100%", maxWidth: 700 }}
             />
           </Box>
 
-          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "right", gap: 2 }}>
+          <Box
+            sx={{
+              flexGrow: 0,
+              display: "flex",
+              justifyContent: "right",
+              gap: 2,
+              alignItems: "center",
+              minWidth: "fit-content",
+            }}
+          >
             {isLoggedIn ? (
               <>
-                <div>Hello, {username}!</div>
+                <Typography sx={{ color: "primary.contrastText", fontWeight: 600 }}>
+                  Hello, {username}!
+                </Typography>
                 <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar />
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, borderRadius: 0 }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.2)",
+                        color: "primary.contrastText",
+                        borderRadius: 0,
+                      }}
+                    />
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -178,10 +278,12 @@ export default function AppLayout({
                   <MenuItem>
                     <Button variant="text">My Recipes</Button>
                   </MenuItem>
-                  <MenuItem onClick={() => {
-                    handleCloseUserMenu();
-                    navigate("/favorites");
-                  }}>
+                  <MenuItem
+                    onClick={() => {
+                      handleCloseUserMenu();
+                      navigate("/favorites");
+                    }}
+                  >
                     <Button variant="text">My Favorites</Button>
                   </MenuItem>
                   <MenuItem onClick={handleCloseUserMenu}>
@@ -196,7 +298,18 @@ export default function AppLayout({
                 <Button variant="contained" onClick={onLoginClick}>
                   Log in
                 </Button>
-                <Button variant="outlined" onClick={onRegisterClick} sx={{ color: "white" }}>
+                <Button
+                  variant="outlined"
+                  onClick={onRegisterClick}
+                  sx={{
+                    color: "primary.contrastText",
+                    borderColor: "rgba(255,255,255,0.55)",
+                    "&:hover": {
+                      borderColor: "rgba(255,255,255,0.85)",
+                      backgroundColor: "rgba(255,255,255,0.08)",
+                    },
+                  }}
+                >
                   Create account
                 </Button>
               </>
@@ -205,234 +318,311 @@ export default function AppLayout({
         </Toolbar>
       </AppBar>
 
-      <Drawer
-        variant="permanent"
-        anchor="left"
+      {showFilters && (
+        <Drawer
+          variant="permanent"
+          anchor="left"
+          sx={{
+            width: drawerWidth,
+            flexShrink: 0,
+            [`& .MuiDrawer-paper`]: {
+              width: drawerWidth,
+              boxSizing: "border-box",
+              borderRadius: 0,
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="h6" textAlign="left" marginLeft="10px" sx={{ fontWeight: 800 }}>
+              Filter by:
+            </Typography>
+
+            <Box component="form">
+              <Autocomplete
+                multiple
+                options={ingredients}
+                disableCloseOnSelect
+                getOptionLabel={(ingredient) => ingredient.name}
+                value={ingredients.filter((ingredient) =>
+                  selectedIngredients.includes(ingredient.name),
+                )}
+                onChange={(_, newValue) => {
+                  setSelectedIngredients(newValue.map((ingredient) => ingredient.name));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.name}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Ingredients" placeholder="Ingredients" />
+                )}
+              />
+
+              <Autocomplete
+                multiple
+                options={categories}
+                disableCloseOnSelect
+                getOptionLabel={(category) => category.strCategory}
+                value={categories.filter((category) =>
+                  selectedCategories.includes(category.strCategory),
+                )}
+                onChange={(_, newValue) => {
+                  setSelectedCategories(newValue.map((category) => category.strCategory));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.strCategory}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Category" placeholder="Category" />
+                )}
+              />
+
+              <Autocomplete
+                multiple
+                options={areas}
+                disableCloseOnSelect
+                getOptionLabel={(area) => area.strArea}
+                value={areas.filter((area) => selectedAreas.includes(area.strArea))}
+                onChange={(_, newValue) => {
+                  setSelectedAreas(newValue.map((area) => area.strArea));
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option.strArea}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => <TextField {...params} label="Area" placeholder="Area" />}
+              />
+
+              <Autocomplete
+                multiple
+                options={tags}
+                disableCloseOnSelect
+                getOptionLabel={(tag) => tag}
+                value={selectedTags}
+                onChange={(_, newValue) => {
+                  setSelectedTags(newValue);
+                  setPage(1);
+                }}
+                renderOption={(props, option, { selected }) => {
+                  const { key, ...optionProps } = props;
+                  const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+
+                  return (
+                    <li key={key} {...optionProps}>
+                      <SelectionIcon
+                        fontSize="small"
+                        style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
+                      />
+                      {option}
+                    </li>
+                  );
+                }}
+                style={{ width: 240, margin: "10px" }}
+                renderInput={(params) => <TextField {...params} label="Tags" placeholder="Tags" />}
+              />
+
+              <Button variant="contained" sx={{ margin: "10px" }} onClick={runFilters}>
+                Filter
+              </Button>
+
+              <Button variant="outlined" sx={{ margin: "10px" }} onClick={clearFilters}>
+                Clear
+              </Button>
+            </Box>
+          </Box>
+        </Drawer>
+      )}
+
+      <Box
+        component="main"
         sx={{
-          width: 260,
-          flexShrink: 0,
-          [`& .MuiDrawer-paper`]: { width: 280, boxSizing: "border-box" },
+          flexGrow: 1,
+          width: showFilters ? `calc(100% - ${drawerWidth}px)` : "100%",
         }}
       >
-        <Box sx={{ marginTop: 9 }}>
-          <Typography variant="h6" textAlign="left" marginLeft="10px">
-            Filter by:
-          </Typography>
+        <Toolbar />
+        <Box sx={{ p: 3 }}>
+          {isHomePage ? (
+            <>
+              <Grid container spacing={2} justifyContent="center" alignItems="flex-start">
+                {displayedMeals.map((meal) => {
+                  const mealTags = meal.strTags
+                    ? meal.strTags
+                        .split(",")
+                        .map((tag) => tag.trim())
+                        .filter(Boolean)
+                    : [];
 
-          <Form>
-            <Autocomplete
-              multiple
-              options={ingredients}
-              disableCloseOnSelect
-              getOptionLabel={(ingredient) => ingredient.name}
-              value={ingredients.filter((i) => selectedIngredients.includes(i.name))}
-              onChange={(_, newValue) => {
-                setSelectedIngredients(newValue.map((i) => i.name));
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+                  return (
+                    <Grid key={meal.id}>
+                      <Card
+                        sx={{
+                          width: 280,
+                          height: 360,
+                          cursor: "pointer",
+                          borderRadius: 0,
+                          overflow: "hidden",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                        variant="outlined"
+                      >
+                        <CardActionArea
+                          onClick={() => navigate(`/recipe/${meal.id}`)}
+                          sx={{
+                            height: "100%",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "stretch",
+                          }}
+                        >
+                          <CardMedia
+                            component="img"
+                            sx={{
+                              height: 190,
+                              width: "100%",
+                              objectFit: "cover",
+                              flexShrink: 0,
+                            }}
+                            image={meal.strMealThumb}
+                            alt={meal.strMeal}
+                            loading="lazy"
+                          />
 
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.name}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Ingredients" placeholder="Ingredients" />}
-            />
+                          <CardContent
+                            sx={{
+                              flexGrow: 1,
+                              width: "100%",
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-start",
+                              textAlign: "left",
+                              gap: 1.5,
+                            }}
+                          >
+                            <Stack spacing={1} sx={{ width: "100%" }}>
+                              <Typography
+                                variant="h6"
+                                component="h2"
+                                sx={{
+                                  fontWeight: 800,
+                                  lineHeight: 1.2,
+                                  display: "-webkit-box",
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: "vertical",
+                                  overflow: "hidden",
+                                  minHeight: "2.4em",
+                                }}
+                              >
+                                {meal.strMeal}
+                              </Typography>
 
-            <Autocomplete
-              multiple
-              options={categories}
-              disableCloseOnSelect
-              getOptionLabel={(category) => category.strCategory}
-              value={categories.filter((c) => selectedCategories.includes(c.strCategory))}
-              onChange={(_, newValue) => {
-                setSelectedCategories(newValue.map((c) => c.strCategory));
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
+                              <Chip
+                                icon={<RestaurantMenuIcon />}
+                                label={meal.strCategory || "Uncategorized"}
+                                size="small"
+                                variant="outlined"
+                                sx={{ borderRadius: 0, alignSelf: "flex-start" }}
+                              />
+                            </Stack>
 
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.strCategory}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Category" placeholder="Category" />}
-            />
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              useFlexGap
+                              flexWrap="wrap"
+                              sx={{ width: "100%" }}
+                            >
+                              {mealTags.length > 0 ? (
+                                mealTags.slice(0, 3).map((tag) => (
+                                  <Chip
+                                    key={tag}
+                                    icon={<SellIcon />}
+                                    label={tag}
+                                    size="small"
+                                    sx={{ borderRadius: 0 }}
+                                  />
+                                ))
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No tags
+                                </Typography>
+                              )}
+                            </Stack>
+                          </CardContent>
+                        </CardActionArea>
 
-            <Autocomplete
-              multiple
-              options={areas}
-              disableCloseOnSelect
-              getOptionLabel={(area) => area.strArea}
-              value={areas.filter((a) => selectedAreas.includes(a.strArea))}
-              onChange={(_, newValue) => {
-                setSelectedAreas(newValue.map((a) => a.strArea));
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option.strArea}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Area" placeholder="Area" />}
-            />
-
-            <Autocomplete
-              multiple
-              options={tags}
-              disableCloseOnSelect
-              getOptionLabel={(tag) => tag}
-              value={selectedTags}
-              onChange={(_, newValue) => {
-                setSelectedTags(newValue);
-              }}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...optionProps } = props;
-                const SelectionIcon = selected ? CheckBoxIcon : CheckBoxOutlineBlankIcon;
-
-                return (
-                  <li key={key} {...optionProps}>
-                    <SelectionIcon
-                      fontSize="small"
-                      style={{ marginRight: 8, padding: 9, boxSizing: "content-box" }}
-                    />
-                    {option}
-                  </li>
-                );
-              }}
-              style={{ width: 240, margin: "10px" }}
-              renderInput={(params) => <TextField {...params} label="Tags" placeholder="Tags" />}
-            />
-
-            <Button
-              variant="contained"
-              sx={{ margin: "10px" }}
-              onClick={async () => {
-                let response;
-                let data;
-                if (
-                  selectedIngredients.length === 0 &&
-                  selectedCategories.length === 0 &&
-                  selectedAreas.length === 0 &&
-                  selectedTags.length === 0
-                ) {
-                  response = await fetch("/api/meals");
-                } else {
-                  response = await fetch(
-                    `/api/meals?ingredients=${selectedIngredients.join(",")}&category=${selectedCategories.join(
-                      ",",
-                    )}&area=${selectedAreas.join(",")}&tags=${selectedTags.join(",")}`,
+                        <CardActions disableSpacing>
+                          <IconButton aria-label="add to favorites" sx={{ borderRadius: 0 }}>
+                            <FavoriteIcon />
+                          </IconButton>
+                        </CardActions>
+                      </Card>
+                    </Grid>
                   );
-                }
-                data = await response.json();
-                setFilterResults(Array.isArray(data) ? data : []);
-              }}
-            >
-              Filter
-            </Button>
+                })}
+              </Grid>
 
-            <Button
-              variant="outlined"
-              sx={{ margin: "10px" }}
-              onClick={() => {
-                setFilterResults(null);
-                setSelectedIngredients([]);
-                setSelectedCategories([]);
-                setSelectedAreas([]);
-                setSelectedTags([]);
-                setSearchInput("");
-                setSearchQuery("");
-              }}
-            >
-              Clear
-            </Button>
-          </Form>
+              <Pagination
+                page={page}
+                count={Math.ceil(visibleMeals.length / itemsPerPage)}
+                onChange={(_, value) => setPage(value)}
+                variant="outlined"
+                color="primary"
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: 3,
+                  "& .MuiPaginationItem-root": {
+                    borderColor: "divider",
+                    borderRadius: 0,
+                  },
+                }}
+              />
+            </>
+          ) : (
+            <Outlet />
+          )}
         </Box>
-      </Drawer>
-
-      <Box sx={{ width: "100%" }}>
-        <Grid container spacing={1} marginTop={10}>
-          {displayedMeals.map((meal) => (
-            <Grid key={meal.id}>
-              <Card sx={{ width: 250, height: 300, cursor: "pointer" }} variant="outlined">
-                <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
-                  <CardMedia
-                    component="img"
-                    sx={{ maxHeight: 200 }}
-                    image={meal.strMealThumb}
-                    alt={meal.strMeal}
-                    loading="lazy"
-                  />
-                  <CardContent>
-                    <Typography
-                      component="h1"
-                      color="textPrimary"
-                      sx={{
-                        fontSize: 25,
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {meal.strMeal}
-                    </Typography>
-                    <Typography component="h4" color="textSecondary">
-                      {meal.strCategory}
-                    </Typography>
-                    <Typography component="p" variant="body2" color="textDisabled">
-                      {meal.strTags}
-                    </Typography>
-                  </CardContent>
-                </CardActionArea>
-                <CardActions disableSpacing>
-                  <IconButton aria-label="add to favorites">
-                    <FavoriteIcon />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-          <Pagination
-              page={page}
-              count={Math.ceil(visibleMeals.length / itemsPerPage)}
-              onChange={(_, value) => setPage(value)}
-              variant="outlined"
-              sx={{
-                  display: "flex", justifyContent: "center", marginTop: 3, "& .MuiPaginationItem-root": {
-                      color: "white",
-                      borderColor: "white"
-                  }, "& .Mui-selected": {
-                      backgroundColor: "#1976d2",
-                      color: "white",
-                      borderColor: "#1976d2"
-                  }
-              }}
-          />
       </Box>
     </Box>
   );
