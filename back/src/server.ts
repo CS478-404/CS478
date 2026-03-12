@@ -451,6 +451,22 @@ app.get("/api/favorites/:id", async (req, res) => {
   }
 });
 
+app.get("/api/created", async (req, res) => {
+    const username = await getAuthUsername(req);
+    if (!username) return res.status(401).json({ error: "Login required" });
+
+    try {
+        const meals = await db.all("SELECT * FROM meals WHERE createdBy = ?", [username]);
+        if (!meals) {
+            return res.status(404).json({ error: "No meals found" });
+        }
+        return res.json(meals);
+    } catch (err) {
+        const error = err as Object;
+        return res.status(500).json({ error: error.toString() });
+    }
+});
+
 /*
 post request handlers
 */

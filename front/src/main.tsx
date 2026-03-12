@@ -7,6 +7,7 @@ import "./index.css";
 import App from "./App.tsx";
 import Recipe from "./Recipe.tsx";
 import CreateRecipe from "./CreateRecipe.tsx";
+import MyRecipe from "./MyRecipe.tsx";
 import Favorites from "./Favorites.tsx";
 import theme from "./theme.ts";
 
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
         path: "favorites",
         element: <Favorites />,
       },
+      {
+        path: "myrecipes",
+        element: <MyRecipe />,
+      }
     ],
   },
 ]);

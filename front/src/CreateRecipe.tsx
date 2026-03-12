@@ -184,8 +184,8 @@ function CreateRecipe() {
                     </Alert>
                 </div>
             )}
-            <Container>
-                <Box sx={{ mt: 4, p: 3, boxShadow: 2, borderRadius: 2, backgroundColor: 'white', padding: 5, width: "30vw"}}>
+            <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <Box sx={{ mt: 4, p: 3, boxShadow: 2, borderRadius: 2, backgroundColor: 'white', padding: 5, width: "90vw"}}>
                     <Typography variant="h4" sx={{ color: 'black' }}>
                         Create Recipe
                     </Typography>

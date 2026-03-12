@@ -275,8 +275,13 @@ export default function AppLayout({
                   >
                     <Button variant="text">User Settings</Button>
                   </MenuItem>
-                  <MenuItem>
-                    <Button variant="text">My Recipes</Button>
+                  <MenuItem
+                    onClick={() => {
+                      handleCloseUserMenu();
+                      navigate("/myrecipes");
+                    }}
+                  >
+                    <Button variant="text">Created Recipes</Button>
                   </MenuItem>
                   <MenuItem
                     onClick={() => {
@@ -285,6 +290,14 @@ export default function AppLayout({
                     }}
                   >
                     <Button variant="text">My Favorites</Button>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      handleCloseUserMenu();
+                      navigate("/create");
+                    }}
+                  >
+                    <Button variant="text">Create Recipe</Button>
                   </MenuItem>
                   <MenuItem onClick={handleCloseUserMenu}>
                     <Button variant="outlined" color="warning" onClick={onLogout}>
