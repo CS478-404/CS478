@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useState, useEffect } from 'react';
+import {useEffect, useState} from 'react';
 import Alert from '@mui/material/Alert';
 import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
@@ -11,8 +11,8 @@ import IconButton from '@mui/material/IconButton';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
+import Pagination from "@mui/material/Pagination";
 
 type Meal = {
     id: string;
@@ -25,7 +25,8 @@ type Meal = {
 function Favorites() {
     let [favorites, setFavorites] = useState<Meal[]>([]);
     let [error, setError] = useState<string | null>(null);
-    let [renderLimit, setRenderLimit] = useState(24);
+    let renderLimit = 24;
+    const [page, setPage] = useState<number>(1);
     let visibleFavorites = favorites.slice(0, renderLimit);
 
     let navigate = useNavigate();
@@ -101,13 +102,22 @@ function Favorites() {
                         </Grid>
                     ))}
                 </Grid>
-                {favorites.length > renderLimit ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
-                        <Button variant="outlined" onClick={() => setRenderLimit((n) => n + 24)}>
-                            Load more
-                        </Button>
-                    </Box>
-                ) : null}
+                <Pagination
+                    page={page}
+                    count={Math.ceil(visibleFavorites.length / renderLimit)}
+                    onChange={(_, value) => setPage(value)}
+                    variant="outlined"
+                    color="primary"
+                    sx={{
+                        display: "flex",
+                        justifyContent: "center",
+                        marginTop: 3,
+                        "& .MuiPaginationItem-root": {
+                            borderColor: "divider",
+                            borderRadius: 0,
+                        },
+                    }}
+                />
             </Box>
         </div>
     )
