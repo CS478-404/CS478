@@ -957,7 +957,7 @@ app.delete("/api/favorites", async (req, res) => {
     const username = await getAuthUsername(req);
     if (!username) return res.status(401).json({ error: "Login required" });
 
-    const recipeId = Number(req.body.data.recipeId);
+    const recipeId = Number(req.body.recipeId);
     if (!Number.isFinite(recipeId)) return res.status(400).json({ error: "Invalid recipe id" });
 
     try {

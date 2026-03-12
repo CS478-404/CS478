@@ -166,11 +166,17 @@ export default function Recipe() {
   );
 
   const addToFavorites = async (recipeId: number) => {
-    await axios.post(`/api/favorites`, { data: { recipeId } });
+    const response = await axios.post(`/api/favorites`, { data: { recipeId } });
+    if (response.status !== 200 || !response.data?.ok) {
+        throw new Error(response.data?.error || "Failed to add favorite");
+    }
   };
 
   const removeFromFavorites = async (recipeId: number) => {
-    await axios.delete(`/api/favorites`, { data: { recipeId } });
+    const response = await axios.delete(`/api/favorites`, { data: { recipeId } });
+    if (response.status !== 200 || !response.data?.ok) {
+        throw new Error(response.data?.error || "Failed to remove favorite");
+    }
   };
 
   const toggleFavorite = async () => {
