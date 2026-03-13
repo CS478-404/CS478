@@ -114,8 +114,13 @@ export default function AppLayout({
   }, [visibleMeals, page]);
 
   const searchOptions = useMemo(() => {
-    return baseMeals.slice(0, 100).map((meal) => meal.strMeal);
-  }, [baseMeals]);
+    const q = searchInput.trim().toLowerCase();
+    const matchingMeals = q
+      ? baseMeals.filter((meal) => meal.strMeal.toLowerCase().includes(q))
+      : baseMeals;
+
+    return [...new Set(matchingMeals.map((meal) => meal.strMeal))].slice(0, 100);
+  }, [baseMeals, searchInput]);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElUser(event.currentTarget);
@@ -126,6 +131,7 @@ export default function AppLayout({
   };
 
   const runSearch = (value: string) => {
+    setSearchInput(value);
     setSearchQuery(value);
     setPage(1);
     navigate("/");
@@ -193,36 +199,49 @@ export default function AppLayout({
           </Box>
 
           <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", minWidth: 0 }}>
-            <Autocomplete
-              id="meal-search"
-              freeSolo
-              options={searchOptions}
-              filterOptions={(options) => options}
-              inputValue={searchInput}
-              onInputChange={(_event, value) => setSearchInput(value)}
-              onChange={(_event, value) => runSearch(value ?? searchInput)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Search meals..."
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      runSearch(searchInput);
-                    }
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      bgcolor: "rgba(255, 249, 244, 0.95)",
-                      borderRadius: 0,
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "text.secondary",
-                    },
-                  }}
-                />
-              )}
-              sx={{ width: "100%", maxWidth: 700 }}
-            />
+          <Autocomplete
+            id="meal-search"
+            freeSolo
+            options={searchOptions}
+            inputValue={searchInput}
+            onInputChange={(_event, value, reason) => {
+              if (reason === "input" || reason === "clear") {
+                setSearchInput(value);
+              }
+            }}
+            onChange={(_event, value) => {
+              const nextValue = value ?? "";
+              setSearchInput(nextValue);
+              setSearchQuery(nextValue);
+              setPage(1);
+              navigate("/");
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder="Search meals..."
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    setSearchQuery(searchInput);
+                    setPage(1);
+                    navigate("/");
+                  }
+                }}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: "rgba(255, 249, 244, 0.95)",
+                    borderRadius: 0,
+                    height: 44,
+                    alignItems: "center",
+                  },
+                  "& .MuiOutlinedInput-input": {
+                    padding: "10px 14px",
+                  },
+                }}
+              />
+            )}
+            sx={{ width: "100%", maxWidth: 700 }}
+          />
           </Box>
 
           <Box
@@ -617,7 +636,7 @@ export default function AppLayout({
 
               <Pagination
                 page={page}
-                count={Math.ceil(visibleMeals.length / itemsPerPage)}
+                count={Math.max(1, Math.ceil(visibleMeals.length / itemsPerPage))}
                 onChange={(_, value) => setPage(value)}
                 variant="outlined"
                 color="primary"
