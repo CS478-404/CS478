@@ -1,116 +1,202 @@
-import axios from 'axios';
-import { useState, useEffect } from 'react';
-import Alert from '@mui/material/Alert';
-import Card from '@mui/material/Card';
-import CardActionArea from '@mui/material/CardActionArea';
-import CardContent from '@mui/material/CardContent';
-import CardMedia from '@mui/material/CardMedia';
-import CardActions from '@mui/material/CardActions';
-import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
-import FavoriteIcon from '@mui/icons-material/Favorite';
-import Grid from '@mui/material/Grid';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-import { useNavigate } from 'react-router-dom';
+import axios from "axios";
+import { useState, useEffect } from "react";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Card from "@mui/material/Card";
+import CardActionArea from "@mui/material/CardActionArea";
+import CardActions from "@mui/material/CardActions";
+import CardContent from "@mui/material/CardContent";
+import CardMedia from "@mui/material/CardMedia";
+import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
+import IconButton from "@mui/material/IconButton";
+import Pagination from "@mui/material/Pagination";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
+import SellIcon from "@mui/icons-material/Sell";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useNavigate } from "react-router-dom";
 
 type Meal = {
-    id: string;
-    strMealThumb: string;
-    strTags: string;
-    strCategory: string;
-    strMeal: string;
+  id: string;
+  strMealThumb: string;
+  strTags: string;
+  strCategory: string;
+  strMeal: string;
 };
+
+const itemsPerPage = 24;
 
 function Favorites() {
-    let [favorites, setFavorites] = useState<Meal[]>([]);
-    let [error, setError] = useState<string | null>(null);
-    let [renderLimit, setRenderLimit] = useState(24);
-    let visibleFavorites = favorites.slice(0, renderLimit);
+  const [favorites, setFavorites] = useState<Meal[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const navigate = useNavigate();
 
-    let navigate = useNavigate();
+  useEffect(() => {
+    async function fetchFavorites() {
+      const favs = await axios.get("/api/favorites");
+      if (favs.status === 200) {
+        setFavorites(favs.data);
+      } else {
+        setFavorites([]);
+        setError("Failed to fetch favorites");
+      }
+    }
 
-    useEffect (() => { 
-        async function fetchFavorites() {
-            let favs = await axios.get('/api/favorites');
-            if (favs.status === 200) {
-                setFavorites(favs.data);
-            } else {
-                setFavorites([]);
-                setError("Failed to fetch favorites");
-            }
-        }
-        fetchFavorites();
-    }, []);
+    fetchFavorites();
+  }, []);
 
+  const visibleFavorites = favorites.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
-    return (
-        <div style={{ width: "100%" }}>
-            <div className="errorHandler">
-                {error && (
-                    <div className="alert-container">
-                        <Alert severity="error">{error}</Alert>
-                    </div>
-                )}
-            </div>
-            <div style={{ display: "flex", justifyContent: "center" }}>
-            </div>
-            <h1 style={{ marginTop: 0, marginBottom: 24 }}>
-                My Favorites
-            </h1>
-            <Box sx={{ width: "100%" }}>
-                <Grid container spacing={2} justifyContent="center">
-                    {visibleFavorites.map((meal) => (
-                        <Grid key={meal.id}>
-                            <Card sx={{ width: 250, height: 300, cursor: "pointer" }} variant="outlined">
-                                <CardActionArea onClick={() => navigate(`/recipe/${meal.id}`)}>
-                                    <CardMedia
-                                        component="img"
-                                        sx={{ maxHeight: 200 }}
-                                        image={meal.strMealThumb}
-                                        alt={meal.strMeal}
-                                        loading="lazy"
-                                    />
-                                    <CardContent>
-                                        <Typography
-                                            component="h1"
-                                            color="textPrimary"
-                                            sx={{
-                                                fontSize: 25,
-                                                textOverflow: "ellipsis",
-                                                whiteSpace: "nowrap",
-                                                overflow: "hidden",
-                                            }}
-                                        >
-                                            {meal.strMeal}
-                                        </Typography>
-                                        <Typography component="h4" color="textSecondary">
-                                            {meal.strCategory}
-                                        </Typography>
-                                        <Typography component="p" variant="body2" color="textDisabled">
-                                            {meal.strTags}
-                                        </Typography>
-                                    </CardContent>
-                                </CardActionArea>
-                                <CardActions disableSpacing>
-                                    <IconButton aria-label="add to favorites">
-                                        <FavoriteIcon />
-                                    </IconButton>
-                                </CardActions>
-                            </Card>
-                        </Grid>
-                    ))}
-                </Grid>
-                {favorites.length > renderLimit ? (
-                    <Box sx={{ display: "flex", justifyContent: "center", my: 3 }}>
-                        <Button variant="outlined" onClick={() => setRenderLimit((n) => n + 24)}>
-                            Load more
-                        </Button>
-                    </Box>
-                ) : null}
-            </Box>
-        </div>
-    )
-};
+  return (
+    <Box sx={{ width: "100%" }}>
+      {error ? (
+        <Box sx={{ mb: 3 }}>
+          <Alert severity="error">{error}</Alert>
+        </Box>
+      ) : null}
+
+      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/")}
+          sx={{ alignSelf: "flex-start" }}
+        >
+          Back
+        </Button>
+
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 800, textAlign: "center", flexGrow: 1 }}>
+          My Favorites
+        </Typography>
+
+        <Box sx={{ width: { xs: 0, sm: 88 } }} />
+      </Stack>
+
+      <Grid container spacing={2} justifyContent="center" alignItems="flex-start">
+        {visibleFavorites.map((meal) => {
+          const mealTags = meal.strTags
+            ? meal.strTags
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean)
+            : [];
+
+          return (
+            <Grid key={meal.id}>
+              <Card
+                sx={{
+                  width: 280,
+                  height: 360,
+                  cursor: "pointer",
+                  borderRadius: 0,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+                variant="outlined"
+              >
+                <CardActionArea
+                  onClick={() => navigate(`/recipe/${meal.id}`)}
+                  sx={{
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                  }}
+                >
+                  <CardMedia
+                    component="img"
+                    sx={{
+                      height: 190,
+                      width: "100%",
+                      objectFit: "cover",
+                      flexShrink: 0,
+                    }}
+                    image={meal.strMealThumb}
+                    alt={meal.strMeal}
+                    loading="lazy"
+                  />
+
+                  <CardContent
+                    sx={{
+                      flexGrow: 1,
+                      width: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      textAlign: "left",
+                      gap: 1.5,
+                    }}
+                  >
+                    <Stack spacing={1} sx={{ width: "100%" }}>
+                      <Typography
+                        variant="h6"
+                        component="h2"
+                        sx={{
+                          fontWeight: 800,
+                          lineHeight: 1.2,
+                          display: "-webkit-box",
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                          minHeight: "2.4em",
+                        }}
+                      >
+                        {meal.strMeal}
+                      </Typography>
+
+                      <Chip
+                        icon={<RestaurantMenuIcon />}
+                        label={meal.strCategory || "Uncategorized"}
+                        size="small"
+                        variant="outlined"
+                        sx={{ borderRadius: 0, alignSelf: "flex-start" }}
+                      />
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ width: "100%" }}>
+                      {mealTags.length > 0 ? (
+                        mealTags.slice(0, 3).map((tag) => (
+                          <Chip key={tag} icon={<SellIcon />} label={tag} size="small" sx={{ borderRadius: 0 }} />
+                        ))
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No tags
+                        </Typography>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            </Grid>
+          );
+        })}
+      </Grid>
+
+      <Pagination
+        page={page}
+        count={Math.max(1, Math.ceil(favorites.length / itemsPerPage))}
+        onChange={(_, value) => setPage(value)}
+        variant="outlined"
+        color="primary"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: 3,
+          "& .MuiPaginationItem-root": {
+            borderColor: "divider",
+            borderRadius: 0,
+          },
+        }}
+      />
+    </Box>
+  );
+}
 
 export default Favorites;
