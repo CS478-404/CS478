@@ -24,6 +24,7 @@ import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import RestaurantMenuIcon from "@mui/icons-material/RestaurantMenu";
 import SellIcon from "@mui/icons-material/Sell";
+import AddIcon from "@mui/icons-material/Add";
 import { useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -114,8 +115,13 @@ export default function AppLayout({
   }, [visibleMeals, page]);
 
   const searchOptions = useMemo(() => {
-    return baseMeals.slice(0, 100).map((meal) => meal.strMeal);
-  }, [baseMeals]);
+    const q = searchInput.trim().toLowerCase();
+    const matchingMeals = q
+      ? baseMeals.filter((meal) => meal.strMeal.toLowerCase().includes(q))
+      : baseMeals;
+
+    return [...new Set(matchingMeals.map((meal) => meal.strMeal))].slice(0, 100);
+  }, [baseMeals, searchInput]);
 
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorElUser(event.currentTarget);
@@ -123,12 +129,6 @@ export default function AppLayout({
 
   const handleCloseUserMenu = () => {
     setAnchorElUser(null);
-  };
-
-  const runSearch = (value: string) => {
-    setSearchQuery(value);
-    setPage(1);
-    navigate("/");
   };
 
   const runFilters = async () => {
@@ -192,37 +192,89 @@ export default function AppLayout({
             />
           </Box>
 
-          <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", minWidth: 0 }}>
-            <Autocomplete
-              id="meal-search"
-              freeSolo
-              options={searchOptions}
-              filterOptions={(options) => options}
-              inputValue={searchInput}
-              onInputChange={(_event, value) => setSearchInput(value)}
-              onChange={(_event, value) => runSearch(value ?? searchInput)}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Search meals..."
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      runSearch(searchInput);
-                    }
-                  }}
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      bgcolor: "rgba(255, 249, 244, 0.95)",
+          <Box
+            sx={{
+              flexGrow: 1,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minWidth: 0,
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                width: "100%",
+                maxWidth: 700,
+              }}
+            >
+              <Autocomplete
+                id="meal-search"
+                freeSolo
+                options={searchOptions}
+                inputValue={searchInput}
+                onInputChange={(_event, value, reason) => {
+                  if (reason === "input" || reason === "clear") {
+                    setSearchInput(value);
+                  }
+                }}
+                onChange={(_event, value) => {
+                  const nextValue = value ?? "";
+                  setSearchInput(nextValue);
+                  setSearchQuery(nextValue);
+                  setPage(1);
+                  navigate("/");
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Search meals..."
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        setSearchQuery(searchInput);
+                        setPage(1);
+                        navigate("/");
+                      }
+                    }}
+                    sx={{
+                      flexGrow: 1,
+                      "& .MuiOutlinedInput-root": {
+                        bgcolor: "rgba(255, 249, 244, 0.95)",
+                        borderRadius: 0,
+                        height: 44,
+                        alignItems: "center",
+                      },
+                      "& .MuiOutlinedInput-input": {
+                        padding: "10px 14px",
+                      },
+                    }}
+                  />
+                )}
+                sx={{ flexGrow: 1 }}
+              />
+
+              {isLoggedIn && (
+                <Tooltip title="Create Recipe">
+                  <IconButton
+                    onClick={() => navigate("/create")}
+                    sx={{
                       borderRadius: 0,
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: "text.secondary",
-                    },
-                  }}
-                />
+                      height: 44,
+                      width: 44,
+                      bgcolor: "rgba(255,255,255,0.15)",
+                      color: "primary.contrastText",
+                      borderLeft: "1px solid rgba(0,0,0,0.2)",
+                      "&:hover": {
+                        bgcolor: "rgba(255,255,255,0.25)",
+                      },
+                    }}
+                  >
+                    <AddIcon />
+                  </IconButton>
+                </Tooltip>
               )}
-              sx={{ width: "100%", maxWidth: 700 }}
-            />
+            </Box>
           </Box>
 
           <Box
@@ -240,6 +292,7 @@ export default function AppLayout({
                 <Typography sx={{ color: "primary.contrastText", fontWeight: 600 }}>
                   Hello, {username}!
                 </Typography>
+
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0, borderRadius: 0 }}>
                     <Avatar
@@ -251,6 +304,7 @@ export default function AppLayout({
                     />
                   </IconButton>
                 </Tooltip>
+
                 <Menu
                   sx={{ mt: "45px" }}
                   id="menu-appbar"
@@ -275,14 +329,16 @@ export default function AppLayout({
                   >
                     <Button variant="text">User Settings</Button>
                   </MenuItem>
+
                   <MenuItem
                     onClick={() => {
                       handleCloseUserMenu();
                       navigate("/myrecipes");
                     }}
                   >
-                    <Button variant="text">Created Recipes</Button>
+                    <Button variant="text">My Recipes</Button>
                   </MenuItem>
+
                   <MenuItem
                     onClick={() => {
                       handleCloseUserMenu();
@@ -291,14 +347,7 @@ export default function AppLayout({
                   >
                     <Button variant="text">My Favorites</Button>
                   </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      handleCloseUserMenu();
-                      navigate("/create");
-                    }}
-                  >
-                    <Button variant="text">Create Recipe</Button>
-                  </MenuItem>
+
                   <MenuItem onClick={handleCloseUserMenu}>
                     <Button variant="outlined" color="warning" onClick={onLogout}>
                       Log out
@@ -617,7 +666,7 @@ export default function AppLayout({
 
               <Pagination
                 page={page}
-                count={Math.ceil(visibleMeals.length / itemsPerPage)}
+                count={Math.max(1, Math.ceil(visibleMeals.length / itemsPerPage))}
                 onChange={(_, value) => setPage(value)}
                 variant="outlined"
                 color="primary"
