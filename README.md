@@ -1,5 +1,3 @@
-# CS478 Full Stack Project
-
 # Project Structure
 
     project-root
